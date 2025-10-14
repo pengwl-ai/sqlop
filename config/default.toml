@@ -1,0 +1,211 @@
+# SQL 解析引擎配置文件
+
+[parser]
+# 最大解析时间（毫秒）
+max_parse_time_ms = 1000
+
+# 是否启用缓存
+enable_cache = true
+
+# 缓存大小
+cache_size = 10000
+
+# 是否启用并行处理
+enable_parallel = true
+
+# 最大工作线程数
+max_workers = 4
+
+# 敏感信息模式配置
+[[sensitive_patterns]]
+name = "身份证号"
+pattern = r"\b\d{17}[\dXx]\b"
+description = "匹配中国身份证号码"
+column_names = ["id_card", "identity_card", "sfz"]
+table_names = ["users", "employees", "customers"]
+
+[[sensitive_patterns]]
+name = "手机号"
+pattern = r"\b1[3-9]\d{9}\b"
+description = "匹配中国手机号码"
+column_names = ["phone", "mobile", "telephone"]
+table_names = ["users", "contacts", "customers"]
+
+[[sensitive_patterns]]
+name = "邮箱"
+pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+description = "匹配邮箱地址"
+column_names = ["email", "mail", "e_mail"]
+table_names = ["users", "customers", "contacts"]
+
+[[sensitive_patterns]]
+name = "密码"
+pattern = r"(?i)\bpassword\b"
+description = "匹配密码相关字段"
+column_names = ["password", "pwd", "passwd"]
+table_names = ["users", "accounts", "auth"]
+
+# 数据库特定配置
+[database_configs.MySQL]
+quote_char = '`'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = null
+custom_keywords = ["AUTO_INCREMENT", "ENGINE", "CHARSET"]
+
+[database_configs.PostgreSQL]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.SQLServer]
+quote_char = '['
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "dbo"
+custom_keywords = ["IDENTITY", "NVARCHAR", "NTEXT"]
+
+[database_configs.Oracle]
+quote_char = '"'
+identifier_case_sensitive = true
+support_schema = false
+default_schema = null
+custom_keywords = ["SEQUENCE", "SYSDATE", "ROWNUM"]
+
+[database_configs.Hive]
+quote_char = '`'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "default"
+custom_keywords = ["EXTERNAL", "PARTITIONED", "CLUSTERED"]
+
+[database_configs.GaussDB]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.Kingbase]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.Highgo]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.Greenplum]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.Vastbase]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "public"
+custom_keywords = ["SERIAL", "BIGSERIAL", "TEXT"]
+
+[database_configs.Sybase]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = "dbo"
+custom_keywords = ["IDENTITY", "DATETIME"]
+
+[database_configs.DB2]
+quote_char = '"'
+identifier_case_sensitive = true
+support_schema = true
+default_schema = null
+custom_keywords = ["GENERATED", "IDENTITY", "LOB"]
+
+[database_configs.Dameng]
+quote_char = '"'
+identifier_case_sensitive = false
+support_schema = true
+default_schema = null
+custom_keywords = ["IDENTITY", "SEQUENCE", "SYSDATE"]
+
+# 性能优化配置
+[performance]
+# 是否启用性能监控
+enable_monitoring = true
+
+# 性能日志级别
+log_level = "info"
+
+# 性能统计间隔（秒）
+stats_interval = 60
+
+# 是否启用慢查询日志
+enable_slow_query_log = true
+
+# 慢查询阈值（毫秒）
+slow_query_threshold = 1000
+
+# 验证配置
+[validation]
+# 是否启用 SQL 验证
+enable_validation = true
+
+# 验证严格级别
+strict_level = "warning"
+
+# 是否启用安全检查
+enable_security_check = true
+
+# 是否启用性能检查
+enable_performance_check = true
+
+# 格式化配置
+[formatting]
+# 缩进大小
+indent_size = 4
+
+# 是否大写关键字
+uppercase_keywords = true
+
+# 最大行长度
+max_line_length = 120
+
+# 是否保留注释
+preserve_comments = true
+
+# 日志配置
+[logging]
+# 日志级别
+level = "info"
+
+# 日志格式
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 日志文件路径
+file_path = "logs/sqlop.log"
+
+# 是否启用控制台日志
+enable_console = true
+
+# 是否启用文件日志
+enable_file = true
+
+# 日志轮转配置
+[logging.rotation]
+# 最大文件大小（MB）
+max_size = 100
+
+# 最大备份数量
+max_backups = 10
+
+# 最大保存天数
+max_age = 30

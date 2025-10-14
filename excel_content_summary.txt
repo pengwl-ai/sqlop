@@ -1,0 +1,24 @@
+Excel文件包含 4 个工作表:
+1. hive
+2. greenplum
+3. mssql
+4. gaussdb
+
+
+工作表: gaussdb
+关键列数据示例:
+SQL: SELECT ALL col1, col2 FROM t1
+解析结果: [{"database":"gaussdb","databaseId":"cf4e2699b0b1b041f236da1a304513df6869f3938ef0ef09029341ecfebe2a8a","objectType":"TABLE","schema":"","objectInfo":[{"objectName":"t1","subObjectNames":["col2","col1"],"objectId":""}]}]
+--------------------------------------------------
+SQL: SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id
+解析结果: [{"database":"gaussdb","databaseId":"cf4e2699b0b1b041f236da1a304513df6869f3938ef0ef09029341ecfebe2a8a","objectType":"TABLE","schema":"","objectInfo":[{"objectName":"categories","subObjectNames":["category_id","category_name"],"objectId":""},{"objectName":"products","subObjectNames":["product_name"],"objectId":""}]}]
+--------------------------------------------------
+SQL: select count(ss.ss_sold_date_sk order by ss.ss_sold_date_sk)c1 from store_sales ss, store_returns sr where sr.sr_customer_sk = ss.ss_customer_sk
+解析结果: [{"database":"gaussdb","databaseId":"cf4e2699b0b1b041f236da1a304513df6869f3938ef0ef09029341ecfebe2a8a","objectType":"TABLE","schema":"","objectInfo":[{"objectName":"store_sales","subObjectNames":["ss_sold_date_sk"],"objectId":""}]}]
+--------------------------------------------------
+SQL: SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC
+解析结果: [{"database":"gaussdb","databaseId":"cf4e2699b0b1b041f236da1a304513df6869f3938ef0ef09029341ecfebe2a8a","objectType":"TABLE","schema":"","objectInfo":[{"objectName":"cxxtest","subObjectNames":["*"],"objectId":""}]}]
+--------------------------------------------------
+SQL: SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8
+解析结果: [{"database":"gaussdb","databaseId":"cf4e2699b0b1b041f236da1a304513df6869f3938ef0ef09029341ecfebe2a8a","objectType":"TABLE","schema":"","objectInfo":[{"objectName":"order_details","subObjectNames":["order_id","price","quantity"],"objectId":""}]}]
+--------------------------------------------------

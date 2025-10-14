@@ -1,0 +1,1450 @@
+数据库类型,SQL语句,是否解析成功,数据库名称,Schema名称,表名称,列名称
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"select id, '张三' as name, unnest(Array['语文','数学','英语']) as course, unnest(Array['篮球','足球']) as interest, id from ttt",成功,,,ttt,"'张三', '数学', as, course, id, interest, name, unnest(Array['篮球', unnest(Array['语文'"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end, id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT ""AS"".address """" FROM a as ""AS""",失败,,,AS,
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department HAVING sum(salary) > 50000",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT DISTINCT ON (gp01.categories.category_id) ""gp01"".categories.category_id ""cid"",p.product_name as pname,gp01.sales.sales_person sperson FROM gp01.categories ,""public"".products p join gp01.sales ON gp01.sales.id = p.product_id WHERE categories.category_id = p.product_id AND gp01.categories.category_id in (1,2,3,4,5,6)",成功,gp01,,"public, sales","categories.category_id, gp01.categories.category_id, p.product_id"
+MySQL,"SELECT * FROM (SELECT department, sum(salary) AS ""Salaries for department""  FROM employees  GROUP BY department HAVING sum(salary) > 50000 )t1  
+inner join (SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600)t2 on 1=1 
+left join (SELECT sales_person, MAX(commission) AS ""highest"" FROM sales GROUP BY sales_person )t3 on 1=1;",成功,,,Salaries for department,")t3, 1;, 600)t2, AS, employee_id, highest, left, sales, sales_person"
+MySQL,SELECT products.category_id FROM public.products WHERE category_id < (select avg(category_id) from gp01.products where gp01.products.category_id<100) INTERSECT SELECT postgres.gp02.inventory.category_id FROM postgres.gp02.inventory,成功,public,,products,"INTERSECT, category_id, gp01.products, gp01.products.category_id, postgres.gp02.inventory, postgres.gp02.inventory.category_id"
+MySQL,"SELECT c.oid, a.attnum, a.attname, c.relname, n.nspname, a.attnotnull OR (t.typtype = 'd' AND t.typnotnull), pg_catalog.pg_get_expr(d.adbin, d.adrelid) LIKE '%nextval(%' FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON (c.relnamespace = n.oid) JOIN pg_catalog.pg_attribute a ON (c.oid = a.attrelid) JOIN pg_catalog.pg_type t ON (a.atttypid = t.oid) LEFT JOIN pg_catalog.pg_attrdef d ON (d.adrelid = a.attrelid AND d.adnum = a.attnum) JOIN (SELECT 16452 AS oid , 1 AS attnum UNION ALL SELECT 16452, 2 UNION ALL SELECT 16452, 3 UNION ALL SELECT 16452, 4 UNION ALL SELECT 16452, 5) vals ON (c.oid = vals.oid AND a.attnum = vals.attnum)",成功,pg_catalog,,pg_class,"'%nextval(%', 'd', =, AND, LIKE, OR, adbin, attname, attnotnull, attnum, nspname, oid, relname, typtype"
+MySQL,SELECT * FROM cxxtest WHERE name LIKE '%|_xiao%' ESCAPE '|',成功,,,cxxtest,"'%|_xiao%', '|', ESCAPE, name"
+MySQL,"CREATE OR REPLACE FUNCTION bst01(id integer)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+  AS
+  $$
+  declare
+    count integer;
+  begin
+    count = (select
+               count(*)
+             FROM  t_user a
+             where a.user_id=id);
+    return count;
+  end;
+$$",成功,,,t_user,"a, count, count(*, id, return, user_id"
+MySQL,"create or replace function  getRcord2() RETURNS  text  AS $$
+    declare
+       rec record;
+       v_text text;
+       c_tmp cursor  for select * from tmp;
+    begin
+        v_text:='';
+       open c_tmp;
+       loop
+           fetch  c_tmp into rec;
+           exit when not FOUND;
+           v_text:=v_text||','||rec.name;
+       end loop;
+       close c_tmp;
+    return v_text;
+    end;
+    $$ language plpgsql;",成功,,,"tmp, rec",
+MySQL,"CREATE OR REPLACE FUNCTION public.f_loop_insert(i_k integer[], i_v text[])
+    RETURNS void
+    LANGUAGE plpgsql
+    STRICT
+   AS $function$
+   declare 
+     i_length int := array_length(i_k,1); 
+     i int;
+     s timestamp;
+     e timestamp;
+   begin 
+     s := clock_timestamp(); 
+     raise notice 'start: %', s;
+     for i in 1..i_length loop
+       insert into test values (i_k[i], i_v[i]); 
+     end loop;
+     e := clock_timestamp(); 
+     raise notice 'end: %, %', e, e-s; 
+   end;
+   $function$;",成功,,,test,
+MySQL,"CREATE OR REPLACE FUNCTION gettable(rows integer)
+    RETURNS TABLE(col1 INTEGER, col2 TEXT)
+    AS $$
+    BEGIN
+      RETURN QUERY SELECT i * 2, i || '_text'
+        FROM generate_series(1, rows, 1) as t(i);
+    END;
+    $$ LANGUAGE PLPGSQL;",成功,,,generate_series,"i * 2, i || '_text'"
+MySQL,"create or replace function test_case(score integer)
+    returns varchar as
+$ty$
+declare
+    ty varchar;
+begin
+    case
+        when score between 0 and 60 then ty = (select name from tmp limit 1);
+        when score between 60 and 80 then ty = (select user_name from t_user limit 1);
+        when score between 80 and 100 then ty = ((select class_name from t_class limit 1));
+        else ty = 'no select';
+        end case;
+    return ty;
+end;
+$ty$ language plpgsql;",成功,,,"tmp, t_user, t_class",name
+MySQL,"create or replace FUNCTION test_sql_scheam.ger_ref(refcursor) RETURNS refcursor AS
+$$
+BEGIN
+ OPEN $1 FOR SELECT name FROM test_sql_scheam.tmp;
+ RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT ger_ref('funccursor');
+FETCH ALL IN funccursor;
+COMMIT;",成功,,,test_sql_scheam.tmp,name
+MySQL,"CREATE OR REPLACE FUNCTION nesting_function1()
+    RETURNS SETOF character varying
+    LANGUAGE plpgsql
+   AS $$
+   begin
+   return query SELECT *
+   FROM test_sql_scheam.nesting_function2 (1);
+   end $$
+   ;
+CREATE OR REPLACE FUNCTION nesting_function2(n integer)
+   RETURNS SETOF character varying
+   LANGUAGE plpgsql
+  AS $$
+  begin
+  return query SELECT first_name
+  FROM public.employees;
+  end $$",成功,,,"test_sql_scheam.nesting_function2, public.employees",
+MySQL,select public.a from (select * from gp01.t1 union (select * from gp02.t1 union select * from gp01.t1)) public,成功,,,select,a
+MySQL,select category_id  between (select category_id from categories where category_id=7) and category_id from categories,成功,,,categories,"between, categories, category_id"
+MySQL,"SELECT p1.product_name, (SELECT product_id FROM products AS p2 WHERE p1.product_id = p2.product_id) AS subquery2 FROM products AS p1",成功,,,products,"AS, p1, p1.product_id, product_id, product_name, products, subquery2"
+MySQL,"select  a,exists(select id from ttt ) from t1",成功,,,ttt,"a, id"
+MySQL,"SELECT p.product_id, p.product_name, t.quantity FROM products p INNER JOIN  (t1 inner join orders on t1.a = orders.id) as t ON p.product_id = t.id",成功,,,products,"product_id, product_name, quantity"
+MySQL,with查询的别名被提取为列名,失败,,,,
+MySQL,"WITH AL2 as (
+        select tdy.org_id as 查询日不良贷款发生额
+        from (select t1.org_id,t1.crn_bal from ridh.rscr_loan_hist_inf t1) tdy
+    )
+    select A.查询日不良贷款发生额       AS 查询日不良贷款发生额122 from (
+    SELECT 
+        SUM(coalesce(AL2.查询日不良贷款发生额,0)) as 查询日不良贷款发生额
+        FROM AL2
+    ) A;",成功,,,select,"as, org_id, 查询日不良贷款发生额"
+MySQL,"create function tf_dt2(x integer) returns setof varchar as $$
+ select product_name from products_test where category_id = tf_dt2.x order by category_id;
+$$ language sql;
+select tf_dt2(533);",成功,,,products_test,"533, category_id, language, product_name, sql, tf_dt2, x"
+MySQL,"select $1,$2 from cxxtest;",成功,,,cxxtest;,"$1, $2"
+MySQL,"SELECT array_01,unnest,a FROM zero_test_04 JOIN unnest(zero_test_04.array_01) on 1=1;",成功,,,zero_test_04,"a, array_01, unnest"
+MySQL,create table,失败,,,,
+MySQL,"CREATE TABLE uk_price_paid
+(
+    price UInt32,
+    date Date,
+    postcode1 LowCardinality(String),
+    postcode2 LowCardinality(String),
+    type Enum8('terraced' = 1, 'semi-detached' = 2, 'detached' = 3, 'flat' = 4, 'other' = 0),
+    is_new UInt8,
+    duration Enum8('freehold' = 1, 'leasehold' = 2, 'unknown' = 0),
+    addr1 String,
+    addr2 String,
+    street LowCardinality(String),
+    locality LowCardinality(String),
+    town LowCardinality(String),
+    district LowCardinality(String),
+    county LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (postcode1, postcode2, addr1, addr2);",失败,,,,
+MySQL,"SELECT formatReadableSize(total_bytes)
+FROM system.tables
+WHERE name = 'uk_price_paid'",失败,,,,
+MySQL,"SELECT
+    town,
+    district,
+    count() AS c,
+    round(avg(price)) AS price,
+    bar(price, 0, 5000000, 100)
+FROM uk_price_paid
+WHERE date >= '2020-01-01'
+GROUP BY
+    town,
+    district
+HAVING c >= 100
+ORDER BY price DESC
+LIMIT 100",失败,,,uk_price_paid,
+MySQL,"CREATE TEMPORARY TABLE
+moscow (polygon Array(Tuple(Float64, Float64)));",失败,,,,
+MySQL,"INSERT INTO moscow VALUES ([(37.84172564285271, 55.78000432402266),
+(37.8381207618713, 55.775874525970494), (37.83979446823122, 55.775626746008065), (37.84243326983639, 55.77446586811748), (37.84262672750849, 55.771974101091104), (37.84153238623039, 55.77114545193181), (37.841124690460184, 55.76722010265554),
+(37.84239076983644, 55.76654891107098), (37.842283558197025, 55.76258709833121), (37.8421759312134, 55.758073999993734), (37.84198330422974, 55.75381499999371), (37.8416827275085, 55.749277102484484), (37.84157576190186, 55.74794544108413),
+(37.83897929098507, 55.74525257875241), (37.83739676451868, 55.74404373042019)]);",失败,,,,
+MySQL,"SELECT count() FROM cell_towers
+WHERE pointInPolygon((lon, lat), (SELECT * FROM moscow))",失败,,,cell_towers,count()
+MySQL,CREATE TABLE /INNER JOIN,失败,,,,
+MySQL,"CREATE TABLE lineorder_flat
+ENGINE = MergeTree ORDER BY (LO_ORDERDATE, LO_ORDERKEY)
+AS SELECT
+    l.LO_ORDERKEY AS LO_ORDERKEY,
+    l.LO_LINENUMBER AS LO_LINENUMBER,
+    c.C_NAME AS C_NAME,
+    s.S_PHONE AS S_PHONE,
+    p.P_NAME AS P_NAME,
+    p.P_MFGR AS P_MFGR
+FROM lineorder AS l
+INNER JOIN customer AS c ON c.C_CUSTKEY = l.LO_CUSTKEY
+INNER JOIN supplier AS s ON s.S_SUPPKEY = l.LO_SUPPKEY
+INNER JOIN part AS p ON p.P_PARTKEY = l.LO_PARTKEY;",失败,,,,
+MySQL,"SELECT
+    sourceIP,
+    sum(adRevenue) AS totalRevenue,
+    avg(pageRank) AS pageRank
+FROM rankings_1node ALL INNER JOIN
+(
+    SELECT
+        sourceIP,
+        destinationURL AS pageURL,
+        adRevenue
+    FROM uservisits_1node
+    WHERE (visitDate > '1980-01-01') AND (visitDate < '1980-04-01')
+) USING pageURL
+GROUP BY sourceIP
+ORDER BY totalRevenue DESC
+LIMIT 1",成功,,,"uservisits_1node, rankings_1node","01, 04, 1, 1980, DESC, USING, adRevenue, avg(pageRank, destinationURL, pageURL, sourceIP, sum(adRevenue, totalRevenue, visitDate"
+MySQL,"SELECT sum(PageViews * _sample_factor)
+FROM visits
+SAMPLE 10000000",失败,,,visits,
+MySQL,ALTER TABLE users FETCH PARTITION 201902 FROM '/clickhouse/tables/01-01/visits';,失败,,,,
+MySQL,ALTER TABLE hits MOVE PART '20190301_14343_16206_438' TO VOLUME 'slow',失败,,,,
+MySQL,ALTER TABLE users ATTACH PART 201901_2_2_0;,失败,,,,
+MySQL,ALTER TABLE hits MOVE PARTITION '2019-09-01' TO DISK 'fast_ssd',失败,,,,
+MySQL,UPDATE,失败,,,,
+MySQL,ALTER TABLE mt UPDATE x = x + 1 IN PARTITION 2 WHERE p = 2;,成功,,,x,"2, p"
+MySQL,ALTER TABLE example_table RESET SETTING max_part_loading_threads;,失败,,,,
+MySQL,ALTER TABLE visits ADD COLUMN browser String AFTER user_id,失败,,,,
+MySQL,ALTER TABLE visits CLEAR COLUMN browser IN PARTITION tuple(),失败,,,,
+MySQL,DROP COLUMN,失败,,,,
+MySQL,ALTER TABLE visits DROP COLUMN browser,失败,,,,
+MySQL,ALTER TABLE visits COMMENT COLUMN browser 'The table shows the browser used for accessing the site.',失败,,,,
+MySQL,ALTER TABLE visits MODIFY COLUMN browser Array(String),失败,,,,
+MySQL,ALTER TABLE table_name DETACH PARTITION partition_expr,失败,,,,
+MySQL,DROP PARTITION,失败,,,,
+MySQL,ALTER TABLE table_name DROP PARTITION partition_expr,失败,,,,
+MySQL,ALTER TABLE table2 REPLACE PARTITION partition_expr FROM table1,成功,,,table1,
+MySQL,"ALTER USER user DEFAULT ROLE role1, role2",失败,,,,
+MySQL,CREATE LIVE VIEW,失败,,,,
+MySQL,CREATE LIVE VIEW lv AS SELECT sum(x) FROM mt;,成功,,,mt,sum(x
+MySQL,CREATE WINDOW,失败,,,,
+MySQL,"CREATE WINDOW VIEW wv AS SELECT count(number), tumbleStart(w_id) as w_start from date GROUP BY tumble(now(), INTERVAL '5' SECOND) as w_id",成功,,,date,"5, INTERVAL, SECOND, count(number, now, tumble, tumbleStart(w_id, w_id"
+MySQL,CREATE  DICTIONARY,失败,,,,
+MySQL,"CREATE DICTIONARY id_value_dictionary
+(
+    id UInt64,
+    value String
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(TABLE 'source_table'))
+LAYOUT(FLAT())
+LIFETIME(MIN 0 MAX 1000)",失败,,,,
+MySQL,CREATE FUNCTION,失败,,,,
+MySQL,"CREATE FUNCTION linear_equation AS (x, k, b) -> k*x + b;",失败,,,,
+MySQL,CREATE ROW POLICY,失败,,,,
+MySQL,"CREATE ROW POLICY pol2 ON mydb.table1 USING c=2 TO peter, antonio",失败,,,,
+MySQL,"CREATE
+SETTINGS PROFILE",失败,,,,
+MySQL,"CREATE
+SETTINGS PROFILE max_memory_usage_profile SETTINGS max_memory_usage = 100000001 MIN 90000000 MAX 110000000
+TO robin",失败,,,,
+MySQL,SELECT * FROM table INTO OUTFILE 'file' FORMAT CSV,失败,,,"outfile, table",
+MySQL,"SELECT horse_tape_summer BETWEEN folklore AND moccasins, CASE WHEN intestine >= 116 THEN nonconformist ELSE FORESTRY END;",失败,,,,
+MySQL,"SELECT
+    count(),
+    arrayStringConcat(arrayMap(x -> concat(demangle(addressToSymbol(x)), '\n    ', addressToLine(x)), trace), '\n') AS sym
+FROM system.trace_log
+WHERE (query_id = 'ebca3574-ad0a-400a-9cbc-dca382f5998c') AND (event_date = today())
+GROUP BY trace
+ORDER BY count() DESC
+LIMIT 10",失败,,,system.trace_log,
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE MATERIALIZED VIEW default.zipkin_spans
+ENGINE = URL('http://127.0.0.1:9411/api/v2/spans', 'JSONEachRow')
+SETTINGS output_format_json_named_tuples_as_objects = 1,
+    output_format_json_array_of_rows = 1 AS
+SELECT
+    lower(hex(trace_id)) AS traceId,
+    case when parent_span_id = 0 then '' else lower(hex(parent_span_id)) end AS parentId,
+    lower(hex(span_id)) AS id,
+    operation_name AS name,
+    start_time_us AS timestamp,
+    finish_time_us - start_time_us AS duration,
+    cast(tuple('clickhouse'), 'Tuple(serviceName text)') AS localEndpoint,
+    cast(tuple(
+        attribute.values[indexOf(attribute.names, 'db.statement')]),
+        'Tuple(""""db.statement"""" text)') AS tags
+FROM system.opentelemetry_span_log",成功,,,system.opentelemetry_span_log,
+MySQL,SELECT * FROM system.zookeeper_log WHERE (session_id = '106662742089334927') AND (xid = '10858') FORMAT Vertical;,成功,,,system.zookeeper_log,"106662742089334927, 10858, FORMAT, Vertical, session_id, xid"
+MySQL,"SELECT *
+FROM system.table_engines
+WHERE name in ('Kafka', 'MergeTree', 'ReplicatedCollapsingMergeTree')",失败,,,,
+MySQL,WITH,失败,,,,
+MySQL,"WITH arrayMap(x -> demangle(addressToSymbol(x)), last_error_trace) AS all
+SELECT name, arrayStringConcat(all, '\n') AS res
+FROM system.errors
+LIMIT 1
+SETTINGS allow_introspection_functions=1",成功,,,system.errors,
+MySQL,CREATE DICTIONARY,失败,,,,
+MySQL,"CREATE DICTIONARY dictdb.dict
+(
+    `key` Int64 DEFAULT -1,
+    `value_default` String DEFAULT 'world',
+    `value_expression` String DEFAULT 'xxx' EXPRESSION 'toString(127 * 172)'
+)
+PRIMARY KEY key
+SOURCE(CLICKHOUSE(HOST 'localhost' PORT 9000 USER 'default' TABLE 'dicttbl' DB 'dictdb'))
+LIFETIME(MIN 0 MAX 1)
+LAYOUT(FLAT())",失败,,,,
+MySQL,INSERT INTO,失败,,,,
+MySQL,"INSERT INTO my_sparse_table
+SELECT
+    number,
+    number % 20 = 0 ? toString(number): ''
+FROM
+    numbers(10000000);",成功,,,"my_sparse_table, numbers",
+MySQL,CREATE TABLE-settings,失败,,,,
+MySQL,"CREATE TABLE my_sparse_table
+(
+    `id` UInt64,
+    `s` String
+)
+ENGINE = MergeTree
+ORDER BY id
+SETTINGS ratio_of_defaults_for_sparse_serialization = 0.95;",失败,,,,
+MySQL,ALTER TABLE-reset,失败,,,,
+MySQL,"ALTER TABLE foo
+    RESET SETTING max_suspicious_broken_parts;",失败,,,,
+MySQL,ALTER TABLE-modify,失败,,,,
+MySQL,"ALTER TABLE foo
+    MODIFY SETTING max_suspicious_broken_parts = 100;",失败,,,,
+MySQL,ALTER TABLE-ADD,失败,,,,
+MySQL,"ALTER TABLE hits_UserID_URL
+    ADD PROJECTION prj_url_userid
+    (
+        SELECT *
+        ORDER BY (URL, UserID)
+    );",成功,,,,"URL, UserID"
+MySQL,ALTER TABLE-MATERIALIZE,失败,,,,
+MySQL,"ALTER TABLE hits_UserID_URL
+    MATERIALIZE PROJECTION prj_url_userid;",失败,,,,
+MySQL,select-settings,失败,,,,
+MySQL,"SELECT idx, i FROM null_in WHERE i IN (1, NULL) SETTINGS transform_null_in = 0;",成功,,,null_in,"0, 1, SETTINGS, i, idx, transform_null_in"
+MySQL,SELECT uniq(UserID) FROM distributed_table WHERE CounterID = 101500 AND UserID GLOBAL IN (SELECT UserID FROM distributed_table WHERE CounterID = 34),成功,,,distributed_table,"101500, 34, CounterID, GLOBAL, UserID, distributed_table, uniq(UserID"
+MySQL,"SELECT
+    EventDate,
+    avg(UserID IN
+    (
+        SELECT UserID
+        FROM test.hits
+        WHERE EventDate = toDate('2014-03-17')
+    )) AS ratio
+FROM test.hits
+GROUP BY EventDate
+ORDER BY EventDate ASC",成功,test,,hits,"AS, EventDate, IN, UserID, avg(UserID, ratio, test.hits"
+MySQL,"SELECT now() AS current_date_time, current_date_time + INTERVAL 4 DAY + INTERVAL 3 HOUR",失败,,,,
+MySQL,SELECT EXTRACT(DAY FROM toDate('2017-06-15'));,成功,,,toDate,EXTRACT(DAY
+MySQL,"SELECT
+    item,
+    ts,
+    value,
+    sum(value) OVER (PARTITION BY item ORDER BY ts ASC) AS stock_balance
+FROM warehouse
+ORDER BY
+    item ASC,
+    ts ASC;",失败,,,,
+MySQL,"SELECT
+    groupArray(value) OVER w1 AS frame_values_1,
+    first_value(value) OVER w1 AS first_value_1,
+    last_value(value) OVER w1 AS last_value_1,
+    groupArray(value) OVER w2 AS frame_values_2,
+    first_value(value) OVER w2 AS first_value_2,
+    last_value(value) OVER w2 AS last_value_2
+FROM wf_frame
+WINDOW
+    w1 AS (PARTITION BY part_key ORDER BY order ASC),
+    w2 AS (PARTITION BY part_key ORDER BY order ASC Rows BETWEEN 1 PRECEDING AND CURRENT ROW)
+ORDER BY
+    part_key ASC,
+    value ASC;",失败,,,,
+MySQL,"SELECT
+    Goal.ID,
+    Goal.EventTime
+FROM test.visits
+ARRAY JOIN Goals AS Goal
+WHERE CounterID = 101500 AND length(Goals.ID) < 5
+LIMIT 10",失败,,,"goals, test.visits",
+MySQL,"SELECT number / 2 AS x, round(x) FROM system.numbers LIMIT 3",成功,,,system.numbers,"number / 2, round(x"
+MySQL,"SELECT [1, 2] AS x, toTypeName(x)",失败,,,,
+MySQL,"SELECT array(1, 2) AS x, toTypeName(x)",失败,,,,
+MySQL,SELECT a['key2'] FROM table_map;,成功,,,table_map;,a['key2'
+MySQL,"SELECT * FROM mysql('localhost:3306', 'test', 'test', 'bayonet', '123')",失败,,,mysql,
+MySQL,"SELECT * FROM format(JSONEachRow,
+$$
+{""""a"""": """"Hello"""", """"b"""": 111}
+{""""a"""": """"World"""", """"b"""": 123}
+{""""a"""": """"Hello"""", """"b"""": 112}
+{""""a"""": """"World"""", """"b"""": 124}
+$$)",失败,,,format,
+MySQL,SELECT * FROM view(SELECT name FROM months);,失败,,,"view, months",
+MySQL,"SELECT * FROM jdbc('jdbc:mysql://localhost:3306/?user=root&password=root', 'schema', 'table')",失败,,,jdbc,
+MySQL,"SELECT * FROM postgresql('localhost:5432', 'test', 'test', 'postgresql_user', 'password');",失败,,,postgresql,
+MySQL,"SELECT * FROM file('test.csv', 'CSV', 'column1 UInt32, column2 UInt32, column3 UInt32') LIMIT 2;",失败,,,file,
+MySQL,with子查询,失败,,,,
+MySQL,"SELECT ans < 1.1 AND ans > 0.5 FROM
+(WITH (SELECT state FROM your_model) AS model SELECT
+evalMLMethod(model, param1, param2) AS ans FROM test_data)",失败,,,"your_model, test_data","5 FROM
+(WITH (SELECT state"
+MySQL,DROP,失败,,,,
+MySQL,DROP TABLE IF EXISTS bitmap_column_expr_test2;,失败,,,,
+MySQL,"select JSONHas('{""a"": ""hello"", ""b"": [-100, 200.0, 300]}', 'b', 4) = 0",失败,,,,
+MySQL,"SELECT
+    left,
+    right,
+    if(left < right, 'left is smaller than right', 'right is greater or equal than left') AS is_smaller
+FROM LEFT_RIGHT
+WHERE isNotNull(left) AND isNotNull(right)",失败,,,,
+MySQL,"SELECT mapFilter((k, v) -> ((v % 2) = 0), _map) AS r
+FROM
+(
+    SELECT map('key1', number, 'key2', number * 2) AS _map
+    FROM numbers(3)
+)",成功,,,numbers,"%, 'key2', ->, =, AS, _map, map('key1', mapFilter((k, number, r"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT explode(array(""{$oid:62a3267689879b8d22ed86d8}"",""{$oid:62a3267689879b8d22ed86d8}""))",失败,,,,
+MySQL,select * from t1 TABLESAMPLE(BUCKET 16 OUT OF 32  ON rand()),失败,,,t1,
+MySQL,"CREATE TABLE table_name (id INT, dtDontQuery STRING, name STRING) PARTITIONED BY (date1 STRING)",失败,,,,
+MySQL,SELECT pv_users.name FROM pv_users left SEMI JOIN t1 ON (t1.amount = pv_users.age),成功,,,pv_users,name
+MySQL,create分桶表,失败,,,,
+MySQL,"CREATE TABLE students (name VARCHAR(64), age INT, gpa DECIMAL(3,2)) CLUSTERED BY (age) INTO 2 BUCKETS STORED AS ORC",成功,,,2,
+MySQL,INSERT OVERWRITE,失败,,,,
+MySQL,"INSERT OVERWRITE TABLE pv_gender_sum SELECT pv_users.gender, count (DISTINCT pv_users.userid) FROM pv_users GROUP BY pv_users.gender",失败,,,,
+MySQL,"SELECT a, b FROM t1 DISTRIBUTE BY a SORT BY a ASC, b DESC",成功,,,t1,"a, b"
+MySQL,"SELECT a, COUNT(b) OVER (PARTITION BY col1) FROM t1 limit 10",成功,,,t1,"BY, OVER, a"
+MySQL,"select INPUT__FILE__NAME,INPUT__FILE__NAME,key from src order by key;",失败,,,,
+MySQL,"SELECT a, LEAD(b) OVER (PARTITION BY col1 ORDER BY col2) FROM t1;",成功,,,t1;,"BY, OVER, a, col1"
+MySQL,"SELECT tmp_dept_no AS DEPT_NO, BENIFIT FROM zero_test_01 LATERAL VIEW explode(split(DEPT_TREE, '\\.')) tmp AS tmp_dept_no WHERE DEAL_DATE = '20220516'",失败,,,,
+MySQL,SELECT * FROM cxxtest WHERE name LIKE '%|_xiao%' ESCAPE '|',成功,,,cxxtest,"'%|_xiao%', '|', ESCAPE, name"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department HAVING sum(salary) > 50000",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,"SELECT ""AS"".address """" FROM a as ""AS""",失败,,,AS,
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,"SELECT DISTINCT ON (gp01.categories.category_id) ""gp01"".categories.category_id ""cid"",p.product_name as pname,gp01.sales.sales_person sperson FROM gp01.categories ,""public"".products p join gp01.sales ON gp01.sales.id = p.product_id WHERE categories.category_id = p.product_id AND gp01.categories.category_id in (1,2,3,4,5,6)",成功,gp01,,"public, sales","categories.category_id, gp01.categories.category_id, p.product_id"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT * FROM (SELECT department, sum(salary) AS ""Salaries for department""  FROM employees  GROUP BY department HAVING sum(salary) > 50000 )t1  
+inner join (SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600)t2 on 1=1 
+left join (SELECT sales_person, MAX(commission) AS ""highest"" FROM sales GROUP BY sales_person )t3 on 1=1;",成功,,,Salaries for department,")t3, 1;, 600)t2, AS, employee_id, highest, left, sales, sales_person"
+MySQL,SELECT products.category_id FROM public.products WHERE category_id < (select avg(category_id) from gp01.products where gp01.products.category_id<100) INTERSECT SELECT postgres.gp02.inventory.category_id FROM postgres.gp02.inventory,成功,public,,products,"INTERSECT, category_id, gp01.products, gp01.products.category_id, postgres.gp02.inventory, postgres.gp02.inventory.category_id"
+MySQL,"CREATE OR REPLACE FUNCTION bst01(id integer)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+  AS
+  $$
+  declare
+    count integer;
+  begin
+    count = (select
+               count(*)
+             FROM  t_user a
+             where a.user_id=id);
+    return count;
+  end;
+$$",成功,,,t_user,"a, count, count(*, id, return, user_id"
+MySQL,"create or replace function  getRcord2() RETURNS  text  AS $$
+    declare
+       rec record;
+       v_text text;
+       c_tmp cursor  for select * from tmp;
+    begin
+        v_text:='';
+       open c_tmp;
+       loop
+           fetch  c_tmp into rec;
+           exit when not FOUND;
+           v_text:=v_text||','||rec.name;
+       end loop;
+       close c_tmp;
+    return v_text;
+    end;
+    $$ language plpgsql;",成功,,,"tmp, rec",
+MySQL,"CREATE OR REPLACE FUNCTION public.f_loop_insert(i_k integer[], i_v text[])
+    RETURNS void
+    LANGUAGE plpgsql
+    STRICT
+   AS $function$
+   declare 
+     i_length int := array_length(i_k,1); 
+     i int;
+     s timestamp;
+     e timestamp;
+   begin 
+     s := clock_timestamp(); 
+     raise notice 'start: %', s;
+     for i in 1..i_length loop
+       insert into test values (i_k[i], i_v[i]); 
+     end loop;
+     e := clock_timestamp(); 
+     raise notice 'end: %, %', e, e-s; 
+   end;
+   $function$;",成功,,,test,
+MySQL,"CREATE OR REPLACE FUNCTION gettable(rows integer)
+    RETURNS TABLE(col1 INTEGER, col2 TEXT)
+    AS $$
+    BEGIN
+      RETURN QUERY SELECT i * 2, i || '_text'
+        FROM generate_series(1, rows, 1) as t(i);
+    END;
+    $$ LANGUAGE PLPGSQL;",成功,,,generate_series,"i * 2, i || '_text'"
+MySQL,"create or replace function test_case(score integer)
+    returns varchar as
+$ty$
+declare
+    ty varchar;
+begin
+    case
+        when score between 0 and 60 then ty = (select name from tmp limit 1);
+        when score between 60 and 80 then ty = (select user_name from t_user limit 1);
+        when score between 80 and 100 then ty = ((select class_name from t_class limit 1));
+        else ty = 'no select';
+        end case;
+    return ty;
+end;
+$ty$ language plpgsql;",成功,,,"tmp, t_user, t_class",name
+MySQL,"create or replace FUNCTION test_sql_scheam.ger_ref(refcursor) RETURNS refcursor AS
+$$
+BEGIN
+ OPEN $1 FOR SELECT name FROM test_sql_scheam.tmp;
+ RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT ger_ref('funccursor');
+FETCH ALL IN funccursor;
+COMMIT;",成功,,,test_sql_scheam.tmp,name
+MySQL,"CREATE OR REPLACE FUNCTION nesting_function1()
+    RETURNS SETOF character varying
+    LANGUAGE plpgsql
+   AS $$
+   begin
+   return query SELECT *
+   FROM test_sql_scheam.nesting_function2 (1);
+   end $$
+   ;
+CREATE OR REPLACE FUNCTION nesting_function2(n integer)
+   RETURNS SETOF character varying
+   LANGUAGE plpgsql
+  AS $$
+  begin
+  return query SELECT first_name
+  FROM public.employees;
+  end $$",成功,,,"test_sql_scheam.nesting_function2, public.employees",
+MySQL,SELECT TOP 5 * FROM test;,成功,,,test;,"5, TOP"
+MySQL,SELECT INTO语句,失败,,,,
+MySQL,SELECT * INTO test2_bak FROM test2;,失败,,,,
+MySQL,INSERT语句,失败,,,,
+MySQL,"INSERT INTO test VALUES(1,2,'aaa',10);",失败,,,,
+MySQL,UPDATE语句,失败,,,,
+MySQL,UPDATE test SET age=20 where id=1;,失败,,,,
+MySQL,ALTER语句,失败,,,,
+MySQL,ALTER TABLE test ADD num int,失败,,,,
+MySQL,DROP语句,失败,,,,
+MySQL,DROP TABLE test;,失败,,,,
+MySQL,DELETE语句,失败,,,,
+MySQL,DELETE FROM test WHERE id=1;,失败,,,,
+MySQL,SELECT CAST('123' AS int);,失败,,,,
+MySQL,"SELECT CONVERT(int, '123');",失败,,,,
+MySQL,"CREATE PROCEDURE test1 
+    @id int,
+    @name varchar(200) output
+as
+BEGIN 
+    SELECT @name=col1 from a200coltable where id=@1d;
+END",成功,,,a200coltable,
+MySQL,DROP PROCEDURE test1;,失败,,,,
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,SELECT distinct(tablename) FROM pg_tables WHERE SCHEMANAME = 'public';,成功,,,pg_tables,"'public';, SCHEMANAME"
+MySQL,SELECT PG_AUTHID.ROLNAME::CHARACTER VARYING(64) AS USERNAME  FROM PG_AUTHID;,成功,,,PG_AUTHID;,"AS, ROLNAME::CHARACTER, USERNAME"
+MySQL,SELECT COUNT(*) FROM V$SESSION WHERE USERNAME='omm';,成功,,,V$SESSION,"'omm';, USERNAME"
+MySQL,"SELECT * FROM pg_query_audit('2015-07-15 08:00:00','2015-07-15 09:47:33');",失败,,,pg_query_audit,
+MySQL,"SELECT * FROM temp_result ORDER BY SWKSSJ, ZJHM LIMIT 10 OFFSET 0;",成功,,,temp_result,"0, 10, SWKSSJ, ZJHM"
+MySQL,SELECT 'abc' ~ 'Abc' AS RESULT;,失败,,,,
+MySQL,"SELECT d_moy, d_fy_week_seq, first_value(d_fy_week_seq) OVER(PARTITION BY d_moy ORDER BY d_fy_week_seq) FROM tpcds.date_dim WHERE d_moy < 4 AND d_fy_week_seq < 7 ORDER BY 1,2;",成功,tpcds,,date_dim,"2;, BY, OVER(PARTITION, d_fy_week_seq, d_moy"
+MySQL,"SELECT ts_rewrite(to_tsquery('supernovae & crab'), 'SELECT t, s FROM tsearch.aliases');",成功,tsearch,,aliases',"&, s, t, ts_rewrite(to_tsquery('supernovae"
+MySQL,SELECT (b).f1 FROM t1_compfoo;,成功,,,t1_compfoo;,f1
+MySQL,SELECT INTO,失败,,,,
+MySQL,SELECT * INTO tpcds.reason_t1 FROM tpcds.reason WHERE r_reason_sk < 5;,成功,tpcds,,reason,"5;, INTO, r_reason_sk, reason_t1"
+MySQL,"SELECT current_timestamp - query_start AS runtime, datname, usename, query FROM pg_stat_activity where state != 'idle' ORDER BY 1 desc;",成功,,,pg_stat_activity,"'idle', -, AS, current_timestamp, datname, desc;, query, query_start, runtime, state, usename"
+MySQL,"select
+count(ss.ss_sold_date_sk order by ss.ss_sold_date_sk)c1 
+from store_sales ss, store_returns sr 
+where 
+sr.sr_customer_sk = ss.ss_customer_sk;",失败,,,,
+MySQL,"select job,dbname,start_date,last_date,this_date,next_date,broken,status,interval,failures,what from user_jobs;",失败,,,user_jobs;,
+MySQL,"explain (costs off)
+select (select c2 from t2 where t1.c1 = t2.c1) ssq, t1.c2
+from t1
+where t1.c2 > 10;",成功,,,"t1, t2","10, c1, c2, ssq, t1, t2"
+MySQL,"select /*+ <plan_hint1> <plan_hint2> */ * from t1, (select /*+ <plan_hint3> */ from t2) where 1=1;",成功,,,t1,"*/, /*+, 1;, <plan_hint1>, <plan_hint2>"
+MySQL,SELECT $$the lexeme '    ' contains spaces$$::tsvector;,失败,,,,
+MySQL,SELECT to_tsvector( 'postgraduate' ) @@ to_tsquery( 'postgres:*' ) AS RESULT;,失败,,,,
+MySQL,SELECT overlay('hello' placing 'world' from 2 for 3 );,成功,,,2,"'world', overlay('hello', placing"
+MySQL,SELECT position('ing' in 'string');,失败,,,,
+MySQL,SELECT trim(E'\\000'::bytea from E'\\000Tom\\000'::bytea) AS RESULT;,成功,,,e,trim(E'\\000'::bytea
+MySQL,SELECT B'10001' || B'011' AS RESULT;,失败,,,,
+MySQL,SELECT 44::bit(10) AS RESULT;,失败,,,,
+MySQL,SELECT 'abc' SIMILAR TO 'abc' AS RESULT;,失败,,,,
+MySQL,SELECT |/ 25.0 AS RESULT;,失败,,,,
+MySQL,SELECT 17#5  AS RESULT;,失败,,,,
+MySQL,SELECT TIMESTAMP WITH TIME ZONE 'epoch' + 982384720.12 * INTERVAL '1 second' AS RESULT;,失败,,,,
+MySQL,SELECT EXTRACT(MILLENNIUM FROM TIMESTAMP '2001-02-16 20:38:40');,成功,,,TIMESTAMP,EXTRACT(MILLENNIUM
+MySQL,SELECT to_clob('ABCDEF'::RAW(10));,失败,,,,
+MySQL,"SELECT box '((0,0),(1,1))' + point '(2.0,0)' AS RESULT;",失败,,,,
+MySQL,SELECT inet '192.168.1.5' < inet '192.168.1.6' AS RESULT;,失败,,,,
+MySQL,"SELECT ARRAY[1,4,3] @> ARRAY[3,1] AS RESULT;",失败,,,,
+MySQL,"SELECT deptno, mgrno, bonus, listagg(ename,'; ') WITHIN GROUP(ORDER BY hiredate) OVER(PARTITION BY deptno) AS employees FROM emp;",失败,,,emp;,
+MySQL,SELECT collation for (description) FROM pg_description LIMIT 1;,成功,,,pg_description,collation for (description
+MySQL,SELECT 2+2 ISNULL AS RESULT;,失败,,,,
+MySQL,"SELECT @ '-4.5' AS ""abs"";",失败,,,,
+MySQL,"SELECT pro_variadic(var1=>'hello', VARIADIC var4=> array[1,2,3,4]);",失败,,,,
+MySQL,CREATE TABLE AS TABLE,失败,,,,
+MySQL,CREATE TABLE tpcds.store_returns_t2 AS table tpcds.store_returns;,失败,,,,
+MySQL,"SELECT r_reason_id,AVG(r_reason_sk) FROM tpcds.reason GROUP BY GROUPING SETS((r_reason_id,r_reason_sk),r_reason_sk);",成功,,,tpcds.reason,"AVG(r_reason_sk, SETS, r_reason_id, r_reason_sk"
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION FOR (35888);,失败,,,tpcds.web_returns_p2,
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION (P6);,失败,,,tpcds.web_returns_p2,
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"select id, '张三' as name, unnest(Array['语文','数学','英语']) as course, unnest(Array['篮球','足球']) as interest, id from ttt",成功,,,ttt,"'张三', '数学', as, course, id, interest, name, unnest(Array['篮球', unnest(Array['语文'"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end, id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,"SELECT col1,col2 FROM test_int WHERE name LIKE 'Jo%'",成功,,,test_int,"'Jo%', col1, col2, name"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE name LIKE Jo%",成功,,,test_int,"Jo, col1, col2, id, name"
+MySQL,"SELECT col1,col2 FROM test_int WHERE id >= 2500 ORDER BY col1 ASC",成功,,,test_int,"col1, col2, id"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE col1 >= 2500 ORDER BY col1,",成功,,,test_int,"2500, col1, col2, id"
+MySQL,"SELECT col1,col2 FROM test_int WHERE name = 'lzy' ORDER BY col2 ASC;",成功,,,test_int,"'lzy', ASC;, col1, col2, name"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE name = 'lzy' ORDER BY col2, ;",成功,,,test_int,"col1, col2, id, lzy, name"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,"SELECT col1,col2 FROM test_int WHERE (col1 = 10 AND col2 > 20) OR (name like '%c%')",成功,,,test_int,"col1, col2"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE col1 = 10 and col2 > 20 or name like '%c%'",成功,,,test_int,"'%c%', col1, col2, id, name"
+MySQL,"SELECT col1,col2 FROM test_int WHERE name IS NOT NULL;",成功,,,test_int,"NULL;, col1, col2, name"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE name IS NOT NULL;",成功,,,test_int,"NULL;, col1, col2, id, name"
+MySQL,"SELECT col1,col2 FROM test_int WHERE name NOT LIKE '%cc%'",成功,,,test_int,"'%cc%', col1, col2, name"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE name NOT LIKE %cc%",成功,,,test_int,"cc, col1, col2, id, name"
+MySQL,"SELECT col1,col2 FROM test_int WHERE col1 BETWEEN 10 AND 20;",成功,,,test_int,"20;, col1, col2"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE col1 >= 10 and col1 <= 20;",成功,,,test_int,"20;, col1, col2, id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT col1,col2 FROM test_int WHERE name = 'lzy' ORDER BY col1 DESC LIMIT 198",成功,,,test_int,"198, DESC, col1, col2, lzy, name"
+MySQL,"SELECT id,col1,col2 FROM test_int WHERE name = lzy ORDER BY col1,
+ desc LIMIT 198",成功,,,test_int,"198, col1, col2, desc, id, lzy, name"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,"SELECT name FROM test_int WHERE col1 IN (12,222,999) AND name IN ('2','3','99');",成功,,,test_int,"'3', '99');, col1, name"
+MySQL,"SELECT id,name FROM test_int WHERE col1 IN (12,222,999) and
+ name IN ('2','3','99');",成功,,,test_int,"'3', '99');, col1, id, name"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,SELECT col1 FROM test_int LIMIT 8;,成功,,,test_int,col1
+MySQL,"SELECT id,col1 FROM test_int LIMIT 8;",成功,,,test_int,"col1, id"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT name FROM test_int WHERE name LIKE '%描述';,成功,,,test_int,"'%描述';, name"
+MySQL,SELECT name FROM test_int WHERE name LIKE '%描述';,成功,,,test_int,"'%描述';, name"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,create table test_create_table22；,失败,,,,
+MySQL,DROP TABLE,失败,,,,
+MySQL,drop table test_create_table22;,失败,,,,
+MySQL,drop table test_create_table22;,失败,,,,
+MySQL,DELETE,失败,,,,
+MySQL,DELETE FROM TEST_INT WHERE name LIKE '%cc%' ;,成功,,,TEST_INT,"'%cc%', ;, name"
+MySQL,DELETE FROM TEST_INT WHERE name LIKE '%cc%' ;,成功,,,TEST_INT,"'%cc%', ;, name"
+MySQL,"SELECT col7,SUM(COL5),AVG(COL6)  FROM TEST_int GROUP BY COL7;",成功,,,TEST_int,col7
+MySQL,"select ID, COL7, SUM(COL5),SUM(COL6), COUNT(COL6)  FROM TEST_int GROUP BY COL7;",成功,,,TEST_int,"COL7, ID"
+MySQL,CREATE SCHEMA,失败,,,,
+MySQL,create schema ns1;,失败,,,,
+MySQL,create schema ns1;,失败,,,,
+MySQL,DROP SCHEMA,失败,,,,
+MySQL,drop schema ns1;,失败,,,,
+MySQL,drop schema ns1;,失败,,,,
+MySQL,delete命令,失败,,,,
+MySQL,"delete 'LZY:TEST_INT', '401', '0:COL1'",失败,,,,
+MySQL,"delete 'LZY:TEST_INT', '343031', '0COL1'",失败,,,,
+MySQL,"create 'student','haseinfo','schoolinfo'",失败,,,,
+MySQL,drop 'student',失败,,,,
+MySQL,drop 'student',失败,,,,
+MySQL,"alter 'student','teacherinfo'",失败,,,,
+MySQL,"alter 'student', {NAME => 'teacherinfo', METHOD => 'delete'}",失败,,,,
+MySQL,create_namespace 'events_db',失败,,,,
+MySQL,create_namespace events_db,失败,,,,
+MySQL,drop_namespace 'ns1',失败,,,,
+MySQL,drop_namespace ns1,失败,,,,
+MySQL,ALTER,失败,,,,
+MySQL,"ALTER TABLE TEST_INT DROP COLUMN LLL;
+alter table LZY.TEST_DECI  drop column col3;
+alter'table',{NAME=>'column_famaly',METHOD=>'delete'};",失败,,,,
+MySQL,"alter table test_int drop column;
+alter table LZY.TEST_DECI  drop column;
+alter 'table', { NAME=> ' ', METHOD => 'delete'};",失败,,,,
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,create table current_inventory;,失败,,,,
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,create table current_inventory;,失败,,,,
+MySQL,DROP VIEW,失败,,,,
+MySQL,DROP VIEW current_inventory2,失败,,,,
+MySQL,drop table current_inventory2,失败,,,,
+MySQL,CREATE INDEX,失败,,,,
+MySQL,CREATE INDEX my_idx ON sales.opportunity(last_updated_date DESC),失败,,,,
+MySQL,create table my_idx;,失败,,,,
+MySQL,DROP INDEX,失败,,,,
+MySQL,DROP INDEX my_idx ON sales.opportunity,失败,,,,
+MySQL,drop table my_idx;,失败,,,,
+MySQL,select(scan)响应,失败,,,,
+MySQL,"create table, create schema, create index, create view, grant, revoke, drop table ...等命令",失败,,,,
+MySQL,"WITH语句
+RIGHT JOIN语句
+LEFT OUTER JOIN语句
+UNION查询
+子查询
+等等",失败,,,,
+MySQL,SELECT * FROM cxxtest WHERE name LIKE '%|_xiao%' ESCAPE '|',成功,,,cxxtest,"'%|_xiao%', '|', ESCAPE, name"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department HAVING sum(salary) > 50000",成功,,,employees,"AS, Salaries, department, for"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,WITH语句,失败,,,,
+MySQL,"WITH name AS (
+        SELECT id FROM CUSTOMER_INFO
+        WHERE name = 'hhh' ORDER BY id
+)
+SELECT * FROM cls1 aa WHERE aa.id12 IN
+        (SELECT s.cls_id FROM stu1 s)",成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE,失败,,,,
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,"SELECT ""AS"".address """" FROM a as ""AS""",失败,,,AS,
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,"SELECT DISTINCT ON (gp01.categories.category_id) ""gp01"".categories.category_id ""cid"",p.product_name as pname,gp01.sales.sales_person sperson FROM gp01.categories ,""public"".products p join gp01.sales ON gp01.sales.id = p.product_id WHERE categories.category_id = p.product_id AND gp01.categories.category_id in (1,2,3,4,5,6)",成功,gp01,,"public, sales","categories.category_id, gp01.categories.category_id, p.product_id"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,INSERT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE VIEW,失败,,,,
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三'
+when 2 then '李四' when 3 then '赵六'
+when 4 then '钱五' when 5 then '王二'
+else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT * FROM (SELECT department, sum(salary) AS ""Salaries for department""  FROM employees  GROUP BY department HAVING sum(salary) > 50000 )t1  
+inner join (SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600)t2 on 1=1 
+left join (SELECT sales_person, MAX(commission) AS ""highest"" FROM sales GROUP BY sales_person )t3 on 1=1;",成功,,,Salaries for department,")t3, 1;, 600)t2, AS, employee_id, highest, left, sales, sales_person"
+MySQL,SELECT products.category_id FROM public.products WHERE category_id < (select avg(category_id) from gp01.products where gp01.products.category_id<100) INTERSECT SELECT postgres.gp02.inventory.category_id FROM postgres.gp02.inventory,成功,public,,products,"INTERSECT, category_id, gp01.products, gp01.products.category_id, postgres.gp02.inventory, postgres.gp02.inventory.category_id"
+MySQL,"CREATE OR REPLACE FUNCTION bst01(id integer)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+  AS
+  $$
+  declare
+    count integer;
+  begin
+    count = (select
+               count(*)
+             FROM  t_user a
+             where a.user_id=id);
+    return count;
+  end;
+$$",成功,,,t_user,"a, count, count(*, id, return, user_id"
+MySQL,"create or replace function  getRcord2() RETURNS  text  AS $$
+    declare
+       rec record;
+       v_text text;
+       c_tmp cursor  for select * from tmp;
+    begin
+        v_text:='';
+       open c_tmp;
+       loop
+           fetch  c_tmp into rec;
+           exit when not FOUND;
+           v_text:=v_text||','||rec.name;
+       end loop;
+       close c_tmp;
+    return v_text;
+    end;
+    $$ language plpgsql;",成功,,,"tmp, rec",
+MySQL,"CREATE OR REPLACE FUNCTION public.f_loop_insert(i_k integer[], i_v text[])
+    RETURNS void
+    LANGUAGE plpgsql
+    STRICT
+   AS $function$
+   declare 
+     i_length int := array_length(i_k,1); 
+     i int;
+     s timestamp;
+     e timestamp;
+   begin 
+     s := clock_timestamp(); 
+     raise notice 'start: %', s;
+     for i in 1..i_length loop
+       insert into test values (i_k[i], i_v[i]); 
+     end loop;
+     e := clock_timestamp(); 
+     raise notice 'end: %, %', e, e-s; 
+   end;
+   $function$;",成功,,,test,
+MySQL,"CREATE OR REPLACE FUNCTION gettable(rows integer)
+    RETURNS TABLE(col1 INTEGER, col2 TEXT)
+    AS $$
+    BEGIN
+      RETURN QUERY SELECT i * 2, i || '_text'
+        FROM generate_series(1, rows, 1) as t(i);
+    END;
+    $$ LANGUAGE PLPGSQL;",成功,,,generate_series,"i * 2, i || '_text'"
+MySQL,"create or replace function test_case(score integer)
+    returns varchar as
+$ty$
+declare
+    ty varchar;
+begin
+    case
+        when score between 0 and 60 then ty = (select name from tmp limit 1);
+        when score between 60 and 80 then ty = (select user_name from t_user limit 1);
+        when score between 80 and 100 then ty = ((select class_name from t_class limit 1));
+        else ty = 'no select';
+        end case;
+    return ty;
+end;
+$ty$ language plpgsql;",成功,,,"tmp, t_user, t_class",name
+MySQL,"create or replace FUNCTION test_sql_scheam.ger_ref(refcursor) RETURNS refcursor AS
+$$
+BEGIN
+ OPEN $1 FOR SELECT name FROM test_sql_scheam.tmp;
+ RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT ger_ref('funccursor');
+FETCH ALL IN funccursor;
+COMMIT;",成功,,,test_sql_scheam.tmp,name
+MySQL,"CREATE OR REPLACE FUNCTION nesting_function1()
+    RETURNS SETOF character varying
+    LANGUAGE plpgsql
+   AS $$
+   begin
+   return query SELECT *
+   FROM test_sql_scheam.nesting_function2 (1);
+   end $$
+   ;
+CREATE OR REPLACE FUNCTION nesting_function2(n integer)
+   RETURNS SETOF character varying
+   LANGUAGE plpgsql
+  AS $$
+  begin
+  return query SELECT first_name
+  FROM public.employees;
+  end $$",成功,,,"test_sql_scheam.nesting_function2, public.employees",
+MySQL,SELECT distinct(tablename) FROM pg_tables WHERE SCHEMANAME = 'public';,成功,,,pg_tables,"'public';, SCHEMANAME"
+MySQL,SELECT PG_AUTHID.ROLNAME::CHARACTER VARYING(64) AS USERNAME  FROM PG_AUTHID;,成功,,,PG_AUTHID;,"AS, ROLNAME::CHARACTER, USERNAME"
+MySQL,SELECT COUNT(*) FROM V$SESSION WHERE USERNAME='omm';,成功,,,V$SESSION,"'omm';, USERNAME"
+MySQL,"SELECT * FROM pg_query_audit('2015-07-15 08:00:00','2015-07-15 09:47:33');",失败,,,pg_query_audit,
+MySQL,"SELECT * FROM temp_result ORDER BY SWKSSJ, ZJHM LIMIT 10 OFFSET 0;",成功,,,temp_result,"0, 10, SWKSSJ, ZJHM"
+MySQL,SELECT 'abc' ~ 'Abc' AS RESULT;,失败,,,,
+MySQL,"SELECT d_moy, d_fy_week_seq, first_value(d_fy_week_seq) OVER(PARTITION BY d_moy ORDER BY d_fy_week_seq) FROM tpcds.date_dim WHERE d_moy < 4 AND d_fy_week_seq < 7 ORDER BY 1,2;",成功,tpcds,,date_dim,"2;, BY, OVER(PARTITION, d_fy_week_seq, d_moy"
+MySQL,"SELECT ts_rewrite(to_tsquery('supernovae & crab'), 'SELECT t, s FROM tsearch.aliases');",成功,tsearch,,aliases',"&, s, t, ts_rewrite(to_tsquery('supernovae"
+MySQL,SELECT (b).f1 FROM t1_compfoo;,成功,,,t1_compfoo;,f1
+MySQL,SELECT INTO,失败,,,,
+MySQL,SELECT * INTO tpcds.reason_t1 FROM tpcds.reason WHERE r_reason_sk < 5;,成功,tpcds,,reason,"5;, INTO, r_reason_sk, reason_t1"
+MySQL,SELECT `a`.`amount` FROM `test118.t1` `a` WHERE `amount` > 10,成功,test118,,t1,amount
+MySQL,"SELECT explode(array(""{$oid:62a3267689879b8d22ed86d8}"",""{$oid:62a3267689879b8d22ed86d8}""))",失败,,,,
+MySQL,select * from t1 TABLESAMPLE(BUCKET 16 OUT OF 32  ON rand()),失败,,,t1,
+MySQL,"CREATE TABLE table_name (id INT, dtDontQuery STRING, name STRING) PARTITIONED BY (date1 STRING)",失败,,,,
+MySQL,SELECT pv_users.name FROM pv_users left SEMI JOIN t1 ON (t1.amount = pv_users.age),成功,,,pv_users,name
+MySQL,create分桶表,失败,,,,
+MySQL,"CREATE TABLE students (name VARCHAR(64), age INT, gpa DECIMAL(3,2)) CLUSTERED BY (age) INTO 2 BUCKETS STORED AS ORC",成功,,,2,
+MySQL,INSERT OVERWRITE,失败,,,,
+MySQL,"INSERT OVERWRITE TABLE pv_gender_sum SELECT pv_users.gender, count (DISTINCT pv_users.userid) FROM pv_users GROUP BY pv_users.gender",失败,,,,
+MySQL,"SELECT a, b FROM t1 DISTRIBUTE BY a SORT BY a ASC, b DESC",成功,,,t1,"a, b"
+MySQL,"SELECT a, COUNT(b) OVER (PARTITION BY col1) FROM t1 limit 10",成功,,,t1,"BY, OVER, a"
+MySQL,"SELECT a, LEAD(b) OVER (PARTITION BY col1 ORDER BY col2) FROM t1;",成功,,,t1;,"BY, OVER, a, col1"
+MySQL,SELECT TOP 5 * FROM test;,成功,,,test;,"5, TOP"
+MySQL,SELECT INTO语句,失败,,,,
+MySQL,SELECT * INTO test2_bak FROM test2;,失败,,,,
+MySQL,INSERT语句,失败,,,,
+MySQL,"INSERT INTO test VALUES(1,2,'aaa',10);",失败,,,,
+MySQL,UPDATE语句,失败,,,,
+MySQL,UPDATE test SET age=20 where id=1;,失败,,,,
+MySQL,ALTER语句,失败,,,,
+MySQL,ALTER TABLE test ADD num int,失败,,,,
+MySQL,DROP语句,失败,,,,
+MySQL,DROP TABLE test;,失败,,,,
+MySQL,DELETE语句,失败,,,,
+MySQL,DELETE FROM test WHERE id=1;,失败,,,,
+MySQL,SELECT CAST('123' AS int);,失败,,,,
+MySQL,"SELECT CONVERT(int, '123');",失败,,,,
+MySQL,"CREATE PROCEDURE test1 
+    @id int,
+    @name varchar(200) output
+as
+BEGIN 
+    SELECT @name=col1 from a200coltable where id=@1d;
+END",成功,,,a200coltable,
+MySQL,DROP PROCEDURE test1;,失败,,,,
+MySQL,select public.a from (select * from gp01.t1 union (select * from gp02.t1 union select * from gp01.t1)) public,成功,,,select,a
+MySQL,"select $1,$2 from cxxtest;",成功,,,cxxtest;,"$1, $2"
+MySQL,"create function tf_dt2(x integer) returns setof varchar as $$
+ select product_name from products_test where category_id = tf_dt2.x order by category_id;
+$$ language sql;
+select tf_dt2(533);",成功,,,products_test,"533, category_id, language, product_name, sql, tf_dt2, x"
+MySQL,select category_name  between (select category_id from categories where category_id=7) and status from categories,成功,,,categories,"between, categories, category_id, category_name, status"
+MySQL,"select id, '张三' as name, unnest(Array['语文','数学','英语']) as course, unnest(Array['篮球','足球']) as interest, id from ttt",成功,,,ttt,"'张三', '数学', as, course, id, interest, name, unnest(Array['篮球', unnest(Array['语文'"
+MySQL,"SELECT c.oid, a.attnum, a.attname, c.relname, n.nspname, a.attnotnull OR (t.typtype = 'd' AND t.typnotnull), pg_catalog.pg_get_expr(d.adbin, d.adrelid) LIKE '%nextval(%' FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON (c.relnamespace = n.oid) JOIN pg_catalog.pg_attribute a ON (c.oid = a.attrelid) JOIN pg_catalog.pg_type t ON (a.atttypid = t.oid) LEFT JOIN pg_catalog.pg_attrdef d ON (d.adrelid = a.attrelid AND d.adnum = a.attnum) JOIN (SELECT 16452 AS oid , 1 AS attnum UNION ALL SELECT 16452, 2 UNION ALL SELECT 16452, 3 UNION ALL SELECT 16452, 4 UNION ALL SELECT 16452, 5) vals ON (c.oid = vals.oid AND a.attnum = vals.attnum)",成功,pg_catalog,,pg_class,"'%nextval(%', 'd', =, AND, LIKE, OR, adbin, attname, attnotnull, attnum, nspname, oid, relname, typtype"
+MySQL,"SELECT p1.product_name, (SELECT product_id FROM products AS p2 WHERE p1.product_id = p2.product_id) AS subquery2 FROM products AS p1",成功,,,products,"AS, p1, p1.product_id, product_id, product_name, products, subquery2"
+MySQL,"SELECT array_01,unnest,a FROM zero_test_04 JOIN unnest(zero_test_04.array_01) on 1=1;",成功,,,zero_test_04,"a, array_01, unnest"
+MySQL,"select  a,exists(select id from ttt ) from t1",成功,,,ttt,"a, id"
+MySQL,"SELECT tmp_dept_no AS DEPT_NO, BENIFIT FROM zero_test_01 LATERAL VIEW explode(split(DEPT_TREE, '\\.')) tmp AS tmp_dept_no WHERE DEAL_DATE = '20220516'",成功,,,zero_test_01,"'20220516', AS, BENCASEIT, DEAL_DATE, DEPT_NO, tmp_dept_no"
+MySQL,"select INPUT__FILE__NAME,INPUT__FILE__NAME,key from src order by key;",成功,,,src,"INPUT__FILE__NAME, key"
+MySQL,"SELECT a, b, GROUPING__ID, count(b) FROM t1 GROUP BY a, b WITH ROLLUP;",成功,,,t1,"ROLLUP, WITH, a, b, count(b"
+MySQL,"SELECT p.product_id, p.product_name, t.quantity FROM products p INNER JOIN  (t1 inner join orders on t1.a = orders.id) as t ON p.product_id = t.id",成功,,,products,"product_id, product_name, quantity"
+MySQL,with查询的别名被提取为列名,失败,,,,
+MySQL,"WITH AL2 as (
+        select tdy.org_id as 查询日不良贷款发生额
+        from (select t1.org_id,t1.crn_bal from ridh.rscr_loan_hist_inf t1) tdy
+    )
+    select A.查询日不良贷款发生额       AS 查询日不良贷款发生额122 from (
+    SELECT 
+        SUM(coalesce(AL2.查询日不良贷款发生额,0)) as 查询日不良贷款发生额
+        FROM AL2
+    ) A;",成功,,,select,"as, org_id, 查询日不良贷款发生额"
+MySQL,"SELECT current_timestamp - query_start AS runtime, datname, usename, query FROM pg_stat_activity where state != 'idle' ORDER BY 1 desc;",成功,,,pg_stat_activity,"'idle', -, AS, current_timestamp, datname, desc;, query, query_start, runtime, state, usename"
+MySQL,"select
+count(ss.ss_sold_date_sk order by ss.ss_sold_date_sk)c1 
+from store_sales ss, store_returns sr 
+where 
+sr.sr_customer_sk = ss.ss_customer_sk;",失败,,,,
+MySQL,"select job,dbname,start_date,last_date,this_date,next_date,broken,status,interval,failures,what from user_jobs;",失败,,,user_jobs;,
+MySQL,"explain (costs off)
+select (select c2 from t2 where t1.c1 = t2.c1) ssq, t1.c2
+from t1
+where t1.c2 > 10;",成功,,,"t1, t2","10, c1, c2, ssq, t1, t2"
+MySQL,"select /*+ <plan_hint1> <plan_hint2> */ * from t1, (select /*+ <plan_hint3> */ from t2) where 1=1;",成功,,,t1,"*/, /*+, 1;, <plan_hint1>, <plan_hint2>"
+MySQL,SELECT $$the lexeme '    ' contains spaces$$::tsvector;,失败,,,,
+MySQL,SELECT to_tsvector( 'postgraduate' ) @@ to_tsquery( 'postgres:*' ) AS RESULT;,失败,,,,
+MySQL,SELECT overlay('hello' placing 'world' from 2 for 3 );,成功,,,2,"'world', overlay('hello', placing"
+MySQL,SELECT position('ing' in 'string');,失败,,,,
+MySQL,SELECT trim(E'\\000'::bytea from E'\\000Tom\\000'::bytea) AS RESULT;,成功,,,e,trim(E'\\000'::bytea
+MySQL,SELECT B'10001' || B'011' AS RESULT;,失败,,,,
+MySQL,SELECT 44::bit(10) AS RESULT;,失败,,,,
+MySQL,SELECT 'abc' SIMILAR TO 'abc' AS RESULT;,失败,,,,
+MySQL,SELECT |/ 25.0 AS RESULT;,失败,,,,
+MySQL,SELECT 17#5  AS RESULT;,失败,,,,
+MySQL,SELECT TIMESTAMP WITH TIME ZONE 'epoch' + 982384720.12 * INTERVAL '1 second' AS RESULT;,失败,,,,
+MySQL,SELECT EXTRACT(MILLENNIUM FROM TIMESTAMP '2001-02-16 20:38:40');,成功,,,TIMESTAMP,EXTRACT(MILLENNIUM
+MySQL,SELECT to_clob('ABCDEF'::RAW(10));,失败,,,,
+MySQL,"SELECT box '((0,0),(1,1))' + point '(2.0,0)' AS RESULT;",失败,,,,
+MySQL,SELECT inet '192.168.1.5' < inet '192.168.1.6' AS RESULT;,失败,,,,
+MySQL,"SELECT ARRAY[1,4,3] @> ARRAY[3,1] AS RESULT;",失败,,,,
+MySQL,"SELECT deptno, mgrno, bonus, listagg(ename,'; ') WITHIN GROUP(ORDER BY hiredate) OVER(PARTITION BY deptno) AS employees FROM emp;",失败,,,emp;,
+MySQL,SELECT collation for (description) FROM pg_description LIMIT 1;,成功,,,pg_description,collation for (description
+MySQL,SELECT 2+2 ISNULL AS RESULT;,失败,,,,
+MySQL,"SELECT @ '-4.5' AS ""abs"";",失败,,,,
+MySQL,"SELECT pro_variadic(var1=>'hello', VARIADIC var4=> array[1,2,3,4]);",失败,,,,
+MySQL,CREATE TABLE AS TABLE,失败,,,,
+MySQL,CREATE TABLE tpcds.store_returns_t2 AS table tpcds.store_returns;,失败,,,,
+MySQL,"SELECT r_reason_id,AVG(r_reason_sk) FROM tpcds.reason GROUP BY GROUPING SETS((r_reason_id,r_reason_sk),r_reason_sk);",成功,,,tpcds.reason,"AVG(r_reason_sk, SETS, r_reason_id, r_reason_sk"
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION FOR (35888);,失败,,,tpcds.web_returns_p2,
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION (P6);,失败,,,tpcds.web_returns_p2,
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"INSERT OVERWRITE TABLE pv_gender_sum SELECT pv_users.gender, count (DISTINCT pv_users.userid) FROM pv_users GROUP BY pv_users.gender",失败,,,,
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述';,成功,,,employees,"'%描述';, employees.中文, 中文"
+MySQL,select * from t1 TABLESAMPLE(BUCKET 16 OUT OF 32  ON rand()),失败,,,t1,
+MySQL,SELECT pv_users.name FROM pv_users left SEMI JOIN t1 ON (t1.amount = pv_users.age),成功,,,pv_users,name
+MySQL,"SELECT a, LEAD(b) OVER (PARTITION BY col1 ORDER BY col2) FROM t1;",成功,,,t1;,"BY, OVER, a, col1"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL;,成功,,,contacts,"NULL;, address"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8;",成功,,,order_details,"price, quantity"
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0;,成功,,,products,"0;, quantity"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,"select  t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,"SELECT a, b FROM t1 DISTRIBUTE BY a SORT BY a ASC, b DESC",成功,,,t1,"a, b"
+MySQL,"CREATE TABLE students (name VARCHAR(64), age INT, gpa DECIMAL(3,2)) CLUSTERED BY (age) INTO 2 BUCKETS STORED AS ORC",成功,,,2,
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,"select INPUT__FILE__NAME,INPUT__FILE__NAME,key from src order by key;",失败,,,,
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600;,成功,,,employees,"600;, employee_id"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name;",成功,,,categories,"'Active', categories.category_name;, categories.status, category_name, product_id"
+MySQL,"SELECT explode(array(""{$oid:62a3267689879b8d22ed86d8}"",""{$oid:62a3267689879b8d22ed86d8}""))",失败,,,,
+MySQL,"CREATE TABLE table_name (id INT, dtDontQuery STRING, name STRING) PARTITIONED BY (date1 STRING)",失败,,,,
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC;",成功,,,categories,"'Hardware', ASC;, category_id, category_name, comments"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,"SELECT name, case id when 1 then '张三' when 2 then '李四' when 3 then '赵六' when 4 then '钱五' when 5 then '王二' else 'fwr' end id from customer_info;",成功,,,customer_info;,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT a, COUNT(b) OVER (PARTITION BY col1) FROM t1 limit 10",成功,,,t1,"BY, OVER, a"
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department HAVING sum(salary) > 50000",成功,,,employees,"AS, Salaries, department, for"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,"SELECT id, '张三' as name, unnest(Array['语文','数学','英语']) as course, unnest(Array['篮球','足球']) as interest, id from ttt",成功,,,ttt,"'张三', '数学', as, course, id, interest, name, unnest(Array['篮球', unnest(Array['语文'"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,SELECT products.category_id FROM public.products WHERE category_id < (select avg(category_id) from gp01.products where gp01.products.category_id<100) INTERSECT SELECT postgres.gp02.inventory.category_id FROM postgres.gp02.inventory,成功,public,,products,"INTERSECT, category_id, gp01.products, gp01.products.category_id, postgres.gp02.inventory, postgres.gp02.inventory.category_id"
+MySQL,"SELECT c.oid, a.attnum, a.attname, c.relname, n.nspname, a.attnotnull OR (t.typtype = 'd' AND t.typnotnull), pg_catalog.pg_get_expr(d.adbin, d.adrelid) LIKE '%nextval(%' FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON (c.relnamespace = n.oid) JOIN pg_catalog.pg_attribute a ON (c.oid = a.attrelid) JOIN pg_catalog.pg_type t ON (a.atttypid = t.oid) LEFT JOIN pg_catalog.pg_attrdef d ON (d.adrelid = a.attrelid AND d.adnum = a.attnum) JOIN (SELECT 16452 AS oid , 1 AS attnum UNION ALL SELECT 16452, 2 UNION ALL SELECT 16452, 3 UNION ALL SELECT 16452, 4 UNION ALL SELECT 16452, 5) vals ON (c.oid = vals.oid AND a.attnum = vals.attnum)",成功,pg_catalog,,pg_class,"'%nextval(%', 'd', =, AND, LIKE, OR, adbin, attname, attnotnull, attnum, nspname, oid, relname, typtype"
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8",成功,,,order_details,"price, quantity"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,"SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department",成功,,,employees,"AS, Salaries, department, for"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL,成功,,,contacts,address
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600,成功,,,employees,employee_id
+MySQL,"CREATE OR REPLACE FUNCTION public.f_loop_insert(i_k integer[], i_v text[]) RETURNS void LANGUAGE plpgsql STRICT AS $function$ declare i_length int := array_length(i_k,1); i int; s timestamp; e timestamp; begin s := clock_timestamp(); raise notice 'start: %', s; for i in 1..i_length loop insert into test values (i_k[i], i_v[i]); end loop; e := clock_timestamp(); raise notice 'end: %, %', e, e-s; end; $function$;",成功,,,test,
+MySQL,CREATE OR REPLACE FUNCTION nesting_function1() RETURNS SETOF character varying LANGUAGE plpgsql AS $$ begin return query SELECT * FROM test_sql_scheam.nesting_function2 (1); end $$,成功,,,test_sql_scheam.nesting_function2,
+MySQL,SELECT * FROM cxxtest WHERE name LIKE '%|_xiao%' ESCAPE '|',成功,,,cxxtest,"'%|_xiao%', '|', ESCAPE, name"
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,"SELECT t2.a from (select * from t1) as t, t2, (select * from t3) as tt",成功,,,select,a
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述',成功,,,employees,"'%描述', employees.中文, 中文"
+MySQL,"SELECT name, case id when 1 then '张三' when 2 then '李四' when 3 then '赵六' when 4 then '钱五' when 5 then '王二' else 'fwr' end, id from customer_info",成功,,,customer_info,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, case, else, end, id, name, then, when"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM cls1 aa WHERE aa.id12 IN (SELECT s.cls_id FROM stu1 s),成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT * from t1 where a in (SELECT a from t2 where a in (SELECT a from t3)),成功,,,t1,"a, t2"
+MySQL,"CREATE OR REPLACE FUNCTION gettable(rows integer) RETURNS TABLE(col1 INTEGER, col2 TEXT) AS $$ BEGIN RETURN QUERY SELECT i * 2, i || '_text' FROM generate_series(1, rows, 1) as t(i); END; $$ LANGUAGE PLPGSQL;",成功,,,generate_series,"i * 2, i || '_text'"
+MySQL,create or replace function test_case(score integer) returns varchar as $ty$ declare ty varchar; begin case when score between 0 and 60 then ty = (select name from tmp limit 1); when score between 60 and 80 then ty = (select user_name from t_user limit 1); when score between 80 and 100 then ty = ((select class_name from t_class limit 1)); else ty = 'no select'; end case; return ty; end; $ty$ language plpgsql;,成功,,,"t_user, tmp, t_class",name
+MySQL,create or replace FUNCTION test_sql_scheam.ger_ref(refcursor) RETURNS refcursor AS $$ BEGIN OPEN $1 FOR SELECT name FROM test_sql_scheam.tmp; RETURN $1; END; $$ LANGUAGE plpgsql;,成功,,,test_sql_scheam.tmp,name
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0,成功,,,products,quantity
+MySQL,"SELECT ""AS"".address """" FROM a as ""AS""",失败,,,AS,
+MySQL,"SELECT * FROM (SELECT department, sum(salary) AS ""Salaries for department"" FROM employees GROUP BY department HAVING sum(salary) > 50000 )t1 inner join (SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600)t2 on 1=1 left join (SELECT sales_person, MAX(commission) AS ""highest"" FROM sales GROUP BY sales_person )t3 on 1=1",成功,,,Salaries for department,")t3, 600)t2, AS, employee_id, highest, left, sales, sales_person"
+MySQL,"SELECT DISTINCT ON (gp01.categories.category_id) ""gp01"".categories.category_id ""cid"", p.product_name as pname, gp01.sales.sales_person sperson FROM gp01.categories ,""public"".products p join gp01.sales ON gp01.sales.id = p.product_id WHERE categories.category_id = p.product_id AND gp01.categories.category_id in (1,2,3,4,5,6)",成功,gp01,,"sales, public","categories.category_id, gp01.categories.category_id, p.product_id"
+MySQL,"create or replace function getRcord2() RETURNS  text  AS $$ declare rec record; v_text text; c_tmp cursor  for select * from tmp; begin v_text:=''; open c_tmp; loop fetch  c_tmp into rec; exit when not FOUND; v_text:=v_text||','||rec.name; end loop; close c_tmp; return v_text; end; $$ language plpgsql;",成功,,,"tmp, rec",
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC",成功,,,categories,"'Hardware', category_id, category_name, comments"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE OR REPLACE FUNCTION nesting_function2(n integer) RETURNS SETOF character varying LANGUAGE plpgsql AS $$ begin return query SELECT first_name FROM public.employees; end $$,成功,,,public.employees,first_name
+MySQL,CREATE OR REPLACE FUNCTION bst01(id integer) RETURNS INTEGER LANGUAGE plpgsql AS $$ declare count integer; begin count = (select count(*) FROM  t_user a where a.user_id=id); return count; end; $$,成功,,,t_user,"a, count, count(*, id, return, user_id"
+MySQL,SELECT products.category_id FROM public.products WHERE category_id < (SELECT avg(category_id) FROM gp01.products WHERE gp01.products.category_id < 100) INTERSECT SELECT postgres.gp02.inventory.category_id FROM postgres.gp02.inventory,成功,public,,products,"INTERSECT, category_id, gp01.products, gp01.products.category_id, postgres.gp02.inventory, postgres.gp02.inventory.category_id"
+MySQL,SELECT * INTO test2_bak FROM test2,成功,,,test2,"INTO, test2_bak"
+MySQL,DROP TABLE test,失败,,,,
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT t2.a FROM (SELECT * FROM t1) AS t, t2, (SELECT * FROM t3) AS tt",成功,,,SELECT,a
+MySQL,CREATE OR REPLACE FUNCTION nesting_function1() RETURNS SETOF character varying LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT * FROM test_sql_scheam.nesting_function2(1); END $$,成功,,,test_sql_scheam.nesting_function2,
+MySQL,ALTER TABLE test ADD num int,失败,,,,
+MySQL,"SELECT department, sum(salary) AS 'Salaries for department' FROM employees GROUP BY department",成功,,,employees,"'Salaries, AS, department, department', for"
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,"CREATE OR REPLACE FUNCTION getRcord2() RETURNS text AS $$ DECLARE rec record; v_text text; c_tmp cursor FOR SELECT * FROM tmp; BEGIN v_text = ''; OPEN c_tmp; LOOP FETCH c_tmp INTO rec; EXIT WHEN NOT FOUND; v_text = v_text || ',' || rec.name; END LOOP; CLOSE c_tmp; RETURN v_text; END; $$ LANGUAGE plpgsql",成功,,,"rec, tmp",
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE a IN (SELECT a FROM t3)),成功,,,t1,"a, t2"
+MySQL,"SELECT * FROM (SELECT department, sum(salary) AS 'Salaries for department' FROM employees GROUP BY department HAVING sum(salary) > 50000) t1 INNER JOIN (SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600) t2 ON 1=1 LEFT JOIN (SELECT sales_person, MAX(commission) AS 'highest' FROM sales GROUP BY sales_person) t3 ON 1=1",成功,,,SELECT,"'highest', AS, LEFT, employee_id, sales, sales_person, t2, t3"
+MySQL,CREATE OR REPLACE FUNCTION nesting_function2(n integer) RETURNS SETOF character varying LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT first_name FROM public.employees; END $$,成功,,,public.employees,first_name
+MySQL,DROP PROCEDURE test1,失败,,,,
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述',成功,,,employees,"'%描述', employees.中文, 中文"
+MySQL,"CREATE PROCEDURE test1 @id int, @name varchar(200) output AS BEGIN SELECT @name = col1 FROM a200coltable WHERE id = @1d; END",成功,,,a200coltable,"1d, @name = col1, id"
+MySQL,SELECT * FROM cxxtest WHERE name LIKE '%|_xiao%' ESCAPE '|',成功,,,cxxtest,"'%|_xiao%', '|', ESCAPE, name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL,成功,,,contacts,address
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8",成功,,,order_details,"price, quantity"
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC",成功,,,categories,"'Hardware', category_id, category_name, comments"
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,DELETE FROM test WHERE id = 1,成功,,,test,id
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600,成功,,,employees,employee_id
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0,成功,,,products,quantity
+MySQL,"SELECT name, CASE id WHEN 1 THEN '张三' WHEN 2 THEN '李四' WHEN 3 THEN '赵六' WHEN 4 THEN '钱五' WHEN 5 THEN '王二' ELSE 'fwr' END id FROM customer_info",成功,,,customer_info,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, CASE, ELSE, END, THEN, WHEN, id, name"
+MySQL,UPDATE test SET age = 20 WHERE id = 1,失败,,,,id
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"CREATE OR REPLACE FUNCTION public.f_loop_insert(i_k integer[], i_v text[]) RETURNS void LANGUAGE plpgsql STRICT AS $function$ DECLARE i_length int := array_length(i_k, 1); i int; s timestamp; e timestamp; BEGIN s := clock_timestamp(); RAISE NOTICE 'start: %', s; FOR i IN 1..i_length LOOP INSERT INTO test VALUES (i_k[i], i_v[i]); END LOOP; e := clock_timestamp(); RAISE NOTICE 'end: %, %', e, e - s; END; $function$",成功,,,test,
+MySQL,SELECT UPPER(name) FROM test,失败,,,test,UPPER(name)
+MySQL,"SELECT department, sum(salary) AS 'Salaries for department' FROM employees GROUP BY department HAVING sum(salary) > 50000",成功,,,employees,"'Salaries, AS, department, department', for"
+MySQL,"CREATE OR REPLACE FUNCTION gettable(rows integer) RETURNS TABLE(col1 INTEGER, col2 TEXT) AS $$ BEGIN RETURN QUERY SELECT i * 2, i || '_text' FROM generate_series(1, rows, 1) AS t(i); END; $$ LANGUAGE PLPGSQL",成功,,,generate_series,"i * 2, i || '_text'"
+MySQL,SELECT TOP 5 * FROM test,成功,,,test,"5, TOP"
+MySQL,"INSERT INTO test VALUES(1, 2, 'aaa', 10)",失败,,,,
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,WITH name AS ( SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id ) SELECT * FROM cls1 aa WHERE aa.id12 IN (SELECT s.cls_id FROM stu1 s),成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,CREATE OR REPLACE FUNCTION test_case(score integer) RETURNS varchar AS $ty$ DECLARE ty varchar; BEGIN CASE WHEN score BETWEEN 0 AND 60 THEN ty = (SELECT name FROM tmp LIMIT 1); WHEN score BETWEEN 60 AND 80 THEN ty = (SELECT user_name FROM t_user LIMIT 1); WHEN score BETWEEN 80 AND 100 THEN ty = (SELECT class_name FROM t_class LIMIT 1); ELSE ty = 'no select'; END CASE; RETURN ty; END; $ty$ LANGUAGE plpgsql,成功,,,"t_class, t_user, tmp",name
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,SELECT VARP(value) FROM test,失败,,,test,VARP(value)
+MySQL,SELECT CAST('123' AS int),失败,,,,
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,CREATE OR REPLACE FUNCTION test_sql_scheam.ger_ref(refcursor) RETURNS refcursor AS $$ BEGIN OPEN $1 FOR SELECT name FROM test_sql_scheam.tmp; RETURN $1; END; $$ LANGUAGE plpgsql; BEGIN; SELECT ger_ref('funccursor'); FETCH ALL IN funccursor; COMMIT;,成功,,,test_sql_scheam.tmp,name
+MySQL,SELECT LOWER(name) FROM test,失败,,,test,LOWER(name)
+MySQL,"SELECT CONVERT(int, '123')",失败,,,,
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT 'AS'.address '' FROM a as 'AS',失败,,,a,
+MySQL,"SELECT DISTINCT ON (gp01.categories.category_id) 'gp01'.categories.category_id 'cid', p.product_name AS pname, gp01.sales.sales_person sperson FROM gp01.categories, 'public'.products p JOIN gp01.sales ON gp01.sales.id = p.product_id WHERE categories.category_id = p.product_id AND gp01.categories.category_id IN (1, 2, 3, 4, 5, 6)",成功,gp01,,categories,"categories.category_id, gp01.categories.category_id, p.product_id"
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,CREATE OR REPLACE FUNCTION bst01(id integer) RETURNS INTEGER LANGUAGE plpgsql AS $$ DECLARE count integer; BEGIN count = (SELECT count(*) FROM t_user a WHERE a.user_id = id); RETURN count; END; $$,成功,,,t_user,"RETURN, a, count, count(*, id, user_id"
+MySQL,"SELECT ALL col1, col2 FROM t1",成功,,,t1,"ALL, col1, col2"
+MySQL,"SELECT products.product_name, subquery1.category_name FROM products, (SELECT categories.category_id, categories.category_name, COUNT(category_id) AS total FROM categories GROUP BY categories.category_id, categories.category_name) AS subquery1 WHERE subquery1.category_id = products.category_id",成功,,,products,"category_name, product_name, products.category_id, subquery1.category_id"
+MySQL,"select count(ss.ss_sold_date_sk order by ss.ss_sold_date_sk)c1 from store_sales ss, store_returns sr where sr.sr_customer_sk = ss.ss_customer_sk",成功,,,store_sales,"by, sr.sr_customer_sk, ss.ss_customer_sk, ss_sold_date_sk, ss_sold_date_sk)c1"
+MySQL,SELECT * FROM cxxtest WHERE id >= 2500 ORDER BY id ASC,成功,,,cxxtest,id
+MySQL,"SELECT order_id, quantity, price FROM order_details WHERE website = 'TechOnTheNet.com' ORDER BY order_id DESC LIMIT 8",成功,,,order_details,"8, DESC, TechOnTheNet, com, price, quantity, website"
+MySQL,SELECT employees.中文 FROM employees WHERE employees.中文 LIKE '%描述',成功,,,employees,"'%描述', employees.中文, 中文"
+MySQL,SELECT B'10001' || B'011' AS RESULT,失败,,,,
+MySQL,"SELECT box '((0,0),(1,1))' + point '(2.0,0)' AS RESULT",失败,,,,
+MySQL,SELECT * FROM employees WHERE (last_name = 'Anderson' AND first_name = 'John') OR (employee_id >= 699),成功,,,employees,"'Anderson', first_name"
+MySQL,"select job,dbname,start_date,last_date,this_date,next_date,broken,status,interval,failures,what from user_jobs",失败,,,user_jobs,
+MySQL,SELECT EXTRACT(MILLENNIUM FROM TIMESTAMP '2001-02-16 20:38:40'),成功,,,TIMESTAMP,EXTRACT(MILLENNIUM
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION (P6),失败,,,tpcds.web_returns_p2,
+MySQL,"SELECT ARRAY[1,4,3] @> ARRAY[3,1] AS RESULT",失败,,,,
+MySQL,"SELECT products.product_name, inventory.quantity FROM products INNER JOIN inventory ON products.product_id = inventory.product_id WHERE products.product_type = 'Hardware'",成功,,,products,"'Hardware', product_name, products.product_type, quantity"
+MySQL,WITH name AS ( SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id ) SELECT * FROM cls1 aa WHERE aa.id12 IN (SELECT s.cls_id FROM stu1 s),成功,,,CUSTOMER_INFO,"'hhh', *, aa, aa.id12, cls1, id, name, s.cls_id, stu1"
+MySQL,"SELECT order_id, quantity, price FROM order_details LIMIT 8",成功,,,order_details,"price, quantity"
+MySQL,"SELECT ts_rewrite(to_tsquery('supernovae & crab'), 'SELECT t, s FROM tsearch.aliases')",成功,tsearch,,aliases',"&, s, t, ts_rewrite(to_tsquery('supernovae"
+MySQL,SELECT |/ 25.0 AS RESULT,失败,,,,
+MySQL,SELECT TIMESTAMP WITH TIME ZONE 'epoch' + 982384720.12 * INTERVAL '1 second' AS RESULT,失败,,,,
+MySQL,SELECT PG_AUTHID.ROLNAME::CHARACTER VARYING(64) AS USERNAME FROM PG_AUTHID,成功,,,PG_AUTHID,"AS, ROLNAME::CHARACTER, USERNAME"
+MySQL,SELECT sales_person FROM sales EXCEPT SELECT category_id FROM inventory,成功,,,sales,sales_person
+MySQL,"SELECT category_id, category_name, comments FROM categories WHERE category_name = 'Hardware' ORDER BY category_name ASC",成功,,,categories,"'Hardware', category_id, category_name, comments"
+MySQL,"SELECT t2.a FROM (SELECT * FROM t1) AS t, t2, (SELECT * FROM t3) AS tt",成功,,,SELECT,a
+MySQL,SELECT $$the lexeme '    ' contains spaces$$::tsvector,失败,,,,
+MySQL,SELECT 44::bit(10) AS RESULT,失败,,,,
+MySQL,"SELECT categories.category_name, products.product_id FROM categories RIGHT JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,SELECT 'abc' ~ 'Abc' AS RESULT,失败,,,,
+MySQL,"SELECT current_timestamp - query_start AS runtime, datname, usename, query FROM pg_stat_activity where state != 'idle' ORDER BY 1 desc",成功,,,pg_stat_activity,"'idle', -, AS, current_timestamp, datname, query, query_start, runtime, state, usename"
+MySQL,SELECT overlay('hello' placing 'world' from 2 for 3 ),成功,,,2,"'world', overlay('hello', placing"
+MySQL,SELECT * FROM tpcds.web_returns_p2 PARTITION FOR (35888),失败,,,tpcds.web_returns_p2,
+MySQL,SELECT inet '192.168.1.5' < inet '192.168.1.6' AS RESULT,失败,,,,
+MySQL,WITH name AS (SELECT id FROM CUSTOMER_INFO WHERE name = 'hhh' ORDER BY id) SELECT * FROM name WHERE name.id IN (SELECT s.cls_id FROM stu1 AS s),成功,,,CUSTOMER_INFO,"'hhh', *, AS, id, name, name.id, s.cls_id, stu1"
+MySQL,SELECT DISTINCT sales_person FROM sales AS s,成功,,,sales,"DISTINCT, sales_person"
+MySQL,"SELECT * FROM temp_result ORDER BY SWKSSJ, ZJHM LIMIT 10 OFFSET 0",成功,,,temp_result,"0, 10, SWKSSJ, ZJHM"
+MySQL,SELECT to_tsvector( 'postgraduate' ) @@ to_tsquery( 'postgres:*' ) AS RESULT,失败,,,,
+MySQL,SELECT position('ing' in 'string'),失败,,,,
+MySQL,SELECT trim(E'\000'::bytea from E'\000Tom\000'::bytea) AS RESULT,成功,,,e,trim(E'\000'::bytea
+MySQL,SELECT 'abc' SIMILAR TO 'abc' AS RESULT,失败,,,,
+MySQL,"INSERT INTO public.contacts (contact_id, contact_name) SELECT customer_id, customer_name FROM gp01.customers WHERE (gp01.customers.last_name = 'Anderson' OR gp01.customers.last_name = 'Smith') AND gp01.customers.customer_id > 0",成功,gp01,,customers,"'Anderson', customer_id, customer_name, gp01.customers.customer_id, gp01.customers.last_name"
+MySQL,SELECT COUNT(*) FROM V$SESSION WHERE USERNAME='omm',成功,,,V$SESSION,"'omm', USERNAME"
+MySQL,SELECT * INTO tpcds.reason_t1 FROM tpcds.reason WHERE r_reason_sk < 5,成功,tpcds,,reason,"INTO, r_reason_sk, reason_t1"
+MySQL,SELECT 17#5  AS RESULT,失败,,,,
+MySQL,SELECT * FROM employees WHERE employee_id NOT BETWEEN 525 AND 600,成功,,,employees,employee_id
+MySQL,"CREATE OR REPLACE VIEW current_inventory2 AS SELECT product_name, quantity FROM products WHERE quantity > 0",成功,,,products,"product_name, quantity"
+MySQL,"SELECT d_moy, d_fy_week_seq, first_value(d_fy_week_seq) OVER(PARTITION BY d_moy ORDER BY d_fy_week_seq) FROM tpcds.date_dim WHERE d_moy < 4 AND d_fy_week_seq < 7 ORDER BY 1, 2",成功,tpcds,,date_dim,"BY, OVER(PARTITION, d_fy_week_seq, d_moy"
+MySQL,SELECT collation for (description) FROM pg_description LIMIT 1,成功,,,pg_description,collation for (description
+MySQL,"SELECT r_reason_id,AVG(r_reason_sk) FROM tpcds.reason GROUP BY GROUPING SETS((r_reason_id,r_reason_sk),r_reason_sk)",成功,,,tpcds.reason,"AVG(r_reason_sk, SETS, r_reason_id, r_reason_sk"
+MySQL,SELECT product_name FROM products WHERE EXISTS (SELECT * FROM inventory WHERE EXISTS (SELECT * FROM products)),成功,,,products,"*, inventory, product_name"
+MySQL,CREATE TABLE current_inventory AS SELECT * FROM products WHERE quantity > 0,成功,,,products,quantity
+MySQL,SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE a IN (SELECT a FROM t3)),成功,,,t1,"a, t2"
+MySQL,SELECT DISTINCT(tablename) FROM pg_tables WHERE SCHEMANAME = 'public',成功,,,pg_tables,"'public', SCHEMANAME"
+MySQL,"SELECT deptno, mgrno, bonus, listagg(ename,'; ') WITHIN GROUP(ORDER BY hiredate) OVER(PARTITION BY deptno) AS employees FROM emp",失败,,,emp,
+MySQL,"SELECT @ '-4.5' AS ""abs""",失败,,,,
+MySQL,CREATE TABLE tpcds.store_returns_t2 AS table tpcds.store_returns,失败,,,,
+MySQL,SELECT * FROM products WHERE EXISTS (SELECT 1 FROM inventory WHERE products.product_id = inventory.product_id),成功,,,products,"inventory, products.product_id"
+MySQL,"select /*+ <plan_hint1> <plan_hint2> */ * from t1, (select /*+ <plan_hint3> */ from t2) where 1=1",成功,,,t1,"*/, /*+, <plan_hint1>, <plan_hint2>"
+MySQL,"SELECT product_name, product_description FROM products WHERE product_name NOT LIKE 'H%'",成功,,,products,"'H%', product_description, product_name"
+MySQL,SELECT category_id FROM products INTERSECT SELECT category_id FROM inventory,成功,,,products,category_id
+MySQL,"explain (costs off) select (select c2 from t2 where t1.c1 = t2.c1) ssq, t1.c2 from t1 where t1.c2 > 10",成功,,,"t2, t1","10, c1, c2, ssq, t1, t2"
+MySQL,SELECT 2+2 ISNULL AS RESULT,失败,,,,
+MySQL,SELECT * FROM 中文 WHERE first_name LIKE 'Jo%',成功,,,中文,"'Jo%', first_name"
+MySQL,SELECT * FROM contacts WHERE address IS NOT NULL,成功,,,contacts,address
+MySQL,SELECT category_id id1 FROM products UNION SELECT category_id id2 FROM categories,成功,,,products,"category_id, id1"
+MySQL,"SELECT * FROM pg_query_audit('2015-07-15 08:00:00','2015-07-15 09:47:33')",失败,,,pg_query_audit,
+MySQL,SELECT to_clob('ABCDEF'::RAW(10)),失败,,,,
+MySQL,"SELECT pro_variadic(var1=>'hello', VARIADIC var4=> array[1,2,3,4])",失败,,,,
+MySQL,"SELECT categories.category_name, products.product_id FROM categories LEFT OUTER JOIN products ON categories.category_id = products.category_id WHERE categories.status = 'Active' ORDER BY categories.category_name",成功,,,categories,"'Active', categories.category_name, categories.status, category_name, product_id"
+MySQL,"SELECT name, CASE id WHEN 1 THEN '张三' WHEN 2 THEN '李四' WHEN 3 THEN '赵六' WHEN 4 THEN '钱五' WHEN 5 THEN '王二' ELSE 'fwr' END id FROM customer_info",成功,,,customer_info,"'fwr', '张三', '李四', '王二', '赵六', '钱五', 1, 2, 3, 4, 5, CASE, ELSE, END, THEN, WHEN, id, name"
+MySQL,SELECT (b).f1 FROM t1_compfoo,成功,,,t1_compfoo,f1
