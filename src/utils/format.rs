@@ -22,9 +22,7 @@ impl SqlFormatter {
         let mut in_string = false;
         let mut string_char = '\0';
         let mut in_comment = false;
-        let mut lines = sql.lines().peekable();
-
-        while let Some(line) = lines.next() {
+        for line in sql.lines() {
             let mut chars = line.chars().peekable();
             let mut current_line = String::new();
             let mut needs_indent = true;
@@ -77,9 +75,7 @@ impl SqlFormatter {
                         needs_indent = false;
                     }
                     ')' => {
-                        if indent_level > 0 {
-                            indent_level -= 1;
-                        }
+                        indent_level = indent_level.saturating_sub(1);
                         current_line.push('\n');
                         current_line.push_str(&self.get_indent(indent_level));
                         current_line.push(ch);
@@ -175,7 +171,7 @@ impl SqlFormatter {
         let mut formatted = line.to_string();
         
         // 处理 MySQL 反引号
-        formatted = formatted.replace("`", "`");
+
         
         // 处理 MySQL 特有的函数
         let mysql_functions = vec![
@@ -200,7 +196,7 @@ impl SqlFormatter {
         let mut formatted = line.to_string();
         
         // 处理 PostgreSQL 双引号
-        formatted = formatted.replace("\"", "\"");
+
         
         // 处理 PostgreSQL 特有的函数
         let pg_functions = vec![
@@ -227,7 +223,7 @@ impl SqlFormatter {
         let mut formatted = line.to_string();
         
         // 处理 SQL Server 方括号
-        formatted = formatted.replace("[", "[").replace("]", "]");
+
         
         // 处理 SQL Server 特有的函数
         let sqlserver_functions = vec![
@@ -254,7 +250,7 @@ impl SqlFormatter {
         let mut formatted = line.to_string();
         
         // 处理 Oracle 双引号
-        formatted = formatted.replace("\"", "\"");
+
         
         // 处理 Oracle 特有的函数
         let oracle_functions = vec![
@@ -280,7 +276,7 @@ impl SqlFormatter {
         let mut formatted = line.to_string();
         
         // 处理 Hive 反引号
-        formatted = formatted.replace("`", "`");
+
         
         // 处理 Hive 特有的函数
         let hive_functions = vec![

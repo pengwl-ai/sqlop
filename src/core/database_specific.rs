@@ -2,9 +2,7 @@
 // 为不同的数据库类型提供特定的语法处理逻辑
 
 use super::types::DatabaseType;
-use super::error::Result;
 use regex::Regex;
-use std::collections::HashMap;
 
 /// 数据库特定语法处理器
 pub struct DatabaseSpecificHandler;

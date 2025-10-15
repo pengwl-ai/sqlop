@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::sync::Arc;
-use once_cell::sync::OnceCell;
+
 
 // 预编译正则表达式，使用lazy_static避免重复编译
 lazy_static! {
@@ -58,8 +58,6 @@ lazy_static! {
 /// 高性能SQL解析器改进版
 pub struct EnhancedSqlParserImprovedOptimized {
     dialect: Option<String>,
-    // 复用的字符串缓冲区，减少内存分配
-    scratch_buffer: OnceCell<String>,
 }
 
 impl EnhancedSqlParserImprovedOptimized {
@@ -67,7 +65,6 @@ impl EnhancedSqlParserImprovedOptimized {
     pub fn new(dialect: Option<String>) -> Self {
         Self {
             dialect,
-            scratch_buffer: OnceCell::new(),
         }
     }
 
@@ -113,7 +110,7 @@ impl EnhancedSqlParserImprovedOptimized {
         let mut paren_count = 0;
         
         // 查找子查询 - 正确处理UTF-8字符
-        let mut chars: Vec<char> = lower_sql.chars().collect();
+        let chars: Vec<char> = lower_sql.chars().collect();
         let char_count = chars.len();
         
         for i in 0..char_count {
@@ -176,25 +173,121 @@ impl EnhancedSqlParserImprovedOptimized {
     
     /// 清理和优化结果
     fn cleanup_result(&self, databases: &mut HashSet<String>, schemas: &mut HashSet<String>, tables: &mut HashSet<String>, columns: &mut HashSet<String>) {
-        // 过滤列名：移除可能的错误标识符
-        columns.retain(|col| {
-            // 过滤掉太短的标识符或只包含特殊字符的标识符
-            let trimmed = col.trim();
-            trimmed.len() > 1 && !trimmed.chars().all(|c| !c.is_alphanumeric())
+        // 定义过滤标识符的通用函数
+        let filter_identifier = |id: &String| -> bool {
+            let trimmed = id.trim();
+            // 1. 移除前后空白字符并检查
+            if trimmed.is_empty() || trimmed.len() <= 1 {
+                return false;
+            }
+            
+            // 2. 检查是否只包含特殊字符或无效字符
+            if !trimmed.chars().any(|c| c.is_alphanumeric() || c == '_' || c == '-' || 
+               (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) {
+                return false;
+            }
+            
+            // 3. 检查是否为SQL关键字
+            if Self::is_keyword(trimmed) {
+                return false;
+            }
+            
+            // 4. 检查是否为SQL关键字或SQL子句关键字
+            const EXTENDED_SQL_KEYWORDS: &[&str] = &[
+                // 基础SQL关键字
+                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+                "TABLE", "VIEW", "INDEX", "DATABASE", "SCHEMA", "PROCEDURE", "FUNCTION", "TRIGGER",
+                "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "NATURAL", "SELF", "SEMI",
+                "ON", "USING", "AS", "ORDER", "GROUP", "BY", "HAVING", "LIMIT", "OFFSET", "TOP",
+                "DISTINCT", "ALL", "UNIQUE", "EXISTS", "IN", "LIKE", "ILIKE", "BETWEEN", "IS", "NOT",
+                "AND", "OR", "XOR", "EXCEPT", "INTERSECT", "UNION", "VALUES", "SET", "REPLACE",
+                // 子句和操作
+                "WITH", "AS", "OVER", "PARTITION", "ORDER", "GROUP", "BY", "HAVING", "LIMIT", "OFFSET",
+                "TOP", "FETCH", "FIRST", "NEXT", "ONLY", "FOR", "UPDATE", "NO", "KEY", "SHARE",
+                "NOWAIT", "WAIT", "SKIP", "LOCKED", "INTO", "OUTPUT", "RETURNING", "EXECUTE", "CALL",
+                // 特殊标识符
+                "DISTINCT", "ALL", "ANY", "SOME", "TRUE", "FALSE", "NULL", "UNKNOWN", "CAST", "CONVERT",
+                "EXTRACT", "DATE_TRUNC", "DATE_ADD", "DATE_SUB", "DATEDIFF", "TO_DATE", "TO_CHAR",
+                "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "NOW", "CURRENT_DATE", 
+                "CURRENT_TIME", "CURRENT_TIMESTAMP", "SYSDATE", "UTC_DATE", "UTC_TIME", 
+                // 存储格式和数据类型相关
+                "STORED", "BUCKETS", "ORC", "PARQUET", "TEXTFILE", "SEQUENCEFILE", "RCFILE", "AVRO",
+                "JSONFILE", "CSVFILE", "DISTRIBUTE", "SORT", "CLUSTER", "INTO", "OUT", "OF",
+                // 子查询相关
+                "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "NATURAL", "SELF", "SEMI", "ANTI",
+                // 操作符和特殊字符
+                "COUNT", "SUM", "AVG", "MAX", "MIN", "LEAD", "LAG", "RANK", "ROW_NUMBER", "NTILE"
+            ];
+            if EXTENDED_SQL_KEYWORDS.contains(&trimmed.to_uppercase().as_str()) {
+                return false;
+            }
+            
+            // 5. 过滤掉SQL函数名
+            let common_functions = [
+                "sum", "avg", "count", "max", "min", "distinct", "cast", "convert",
+                "date", "time", "year", "month", "day", "upper", "lower", "left", "right",
+                "abs", "round", "floor", "ceil", "length", "concat", "substr", "replace",
+                "explode", "array", "input__file__name", "first", "last", "lead", "lag",
+                "rank", "dense_rank", "row_number", "ntile", "percentile", "truncate", "ceiling",
+                "log", "log10", "exp", "sqrt", "power", "sin", "cos", "tan", "asin", "acos",
+                "atan", "atan2", "degrees", "radians", "trim", "ltrim", "rtrim", "substring",
+                "position", "coalesce", "nullif", "case", "when", "then", "else", "end",
+                "extract", "date_trunc", "date_add", "date_sub", "datediff", "to_date", "to_char",
+                "now", "current_date", "current_time", "current_timestamp", "exists", "in",
+                "like", "ilike", "between", "is", "not", "and", "or", "xor", "except", "intersect",
+                "union", "all", "any", "some", "over", "partition", "order", "group", "by"
+            ];
+            let lower_trimmed = trimmed.to_lowercase();
+            if common_functions.contains(&lower_trimmed.as_str()) {
+                return false;
+            }
+            
+            // 6. 过滤掉纯数字标识符
+            if trimmed.chars().all(|c| c.is_digit(10)) {
+                return false;
+            }
+            
+            // 7. 检查是否是有效的标识符格式（可以包含字母、数字、下划线、中文、连字符等）
+            // 同时确保不包含括号、引号等无效字符
+            let valid_chars = trimmed.chars().all(|c| {
+                c.is_alphanumeric() || c == '_' || c == '-' || 
+                (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF) || // 中文字符范围
+                (c as u32 >= 0x3040 && c as u32 <= 0x30FF) || // 日文平假名和片假名
+                (c as u32 >= 0xAC00 && c as u32 <= 0xD7AF)    // 韩文字符范围
+            });
+            
+            valid_chars
+        };
+        
+        // 过滤数据库和模式标识符集合
+        databases.retain(filter_identifier);
+        schemas.retain(filter_identifier);
+        
+        // 对表名应用额外的严格过滤，避免常见的误识别
+        tables.retain(|id| {
+            filter_identifier(id) && 
+            // 额外检查：避免表名中包含常见SQL子句
+            !id.to_uppercase().contains("WHERE") &&
+            !id.to_uppercase().contains("BY") &&
+            !id.to_uppercase().contains("GROUP") &&
+            !id.to_uppercase().contains("ORDER") &&
+            !id.to_uppercase().contains("FROM") &&
+            !id.to_uppercase().contains("JOIN") &&
+            !id.to_uppercase().contains("EXISTS") &&
+            !id.to_uppercase().contains("INNER") &&
+            !id.to_uppercase().contains("LEFT") &&
+            !id.to_uppercase().contains("RIGHT")
         });
         
-        // 过滤掉可能是SQL关键字的列名
-        columns.retain(|col| !Self::is_keyword(col));
-        
-        // 过滤掉可能是SQL函数名的列名
-        let common_functions = [
-            "sum", "avg", "count", "max", "min", "distinct", "cast", "convert",
-            "date", "time", "year", "month", "day", "upper", "lower", "left", "right"
-        ];
-        
-        columns.retain(|col| {
-            let lower_col = col.to_lowercase();
-            !common_functions.contains(&lower_col.as_str())
+        // 对列名应用额外过滤，避免无效标识符
+        columns.retain(|id| {
+            filter_identifier(id) && 
+            // 避免列名中包含无效字符组合
+            !id.contains(")") && // 避免类似 "s)" 这样的无效列名
+            !id.contains("))") && // 避免类似 "products))" 这样的无效列名
+            // 避免过于简单的列名被误识别
+            (id.trim().len() > 1 || 
+             (id.trim().len() == 1 && id.chars().all(|c| c.is_alphabetic() && !c.is_ascii_uppercase())))
         });
     }
 
@@ -591,8 +684,12 @@ impl EnhancedSqlParserImprovedOptimized {
                 if in_function {
                     if *c == '(' {
                         // 确认是函数调用
-                        let function_name = &sql[function_start..i];
-                        if !Self::is_keyword(function_name) {
+                        // 使用字符边界安全的切片方法
+                        let function_name: String = sql.chars()
+                            .skip(function_start)
+                            .take(i - function_start)
+                            .collect();
+                        if !Self::is_keyword(&function_name) {
                             // 查找函数结束括号
                             let mut j = i + 1;
                             let mut nested_paren = 1;
@@ -606,7 +703,12 @@ impl EnhancedSqlParserImprovedOptimized {
                             }
                             
                             if nested_paren == 0 && j <= chars.len() {
-                                calls.push(sql[function_start..j].to_string());
+                                // 使用字符边界安全的切片方法
+                                let function_str = sql.chars()
+                                    .skip(function_start)
+                                    .take(j - function_start)
+                                    .collect::<String>();
+                                calls.push(function_str);
                             }
                         }
                         in_function = false;
@@ -808,20 +910,7 @@ impl EnhancedSqlParserImprovedOptimized {
         }
     }
 
-    /// 辅助方法：提取最后一个标识符
-    fn extract_last_identifier(expr: &str) -> String {
-        // 处理可能的表别名.列名格式
-        if let Some(dot_pos) = expr.rfind('.') {
-            let last_part = &expr[dot_pos + 1..];
-            // 去除可能的括号和引号
-            let clean_part = last_part.trim_matches(|c| c == '(' || c == ')' || c == '`' || c == '"').to_string();
-            return clean_part;
-        }
-        
-        // 去除可能的括号和引号
-        let clean_expr = expr.trim_matches(|c| c == '(' || c == ')' || c == '`' || c == '"').to_string();
-        clean_expr
-    }
+
 
     /// 辅助方法：安全地分割SQL部分，考虑嵌套括号和引号 - 增强版
     /// 性能优化：正确处理UTF-8字符边界

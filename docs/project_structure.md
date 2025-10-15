@@ -11,10 +11,11 @@ sqlop/
 ├── README.md           # 项目主文档
 ├── config/             # 配置文件目录
 ├── docs/               # 文档目录
-├── run_first_few_tests.sh # 快速运行测试脚本
+├── eps_result.txt      # EPS性能测试结果文件
+├── result.txt          # 测试结果记录文件
+├── run_tests.sh        # 测试运行脚本
 ├── src/                # 源代码目录
 ├── target/             # 编译输出目录
-├── test_results.txt    # 测试结果记录文件
 └── tests/              # 测试文件目录
 ```
 
@@ -29,7 +30,6 @@ src/
 ├── adapters/           # 数据库适配器实现
 ├── bin/                # 可执行二进制文件
 ├── core/               # 核心功能实现
-├── examples/           # 使用示例代码
 ├── lib.rs              # 库入口文件
 ├── main.rs             # 主程序入口
 └── utils/              # 通用工具函数
@@ -58,15 +58,33 @@ adapters/
 └── sybase.rs           # Sybase数据库适配器
 ```
 
+**dialects/ 子目录**：
+包含各种数据库方言的具体实现，用于处理SQL语法差异：
+
+```
+dialects/
+├── mod.rs              # 方言模块定义
+├── mysql_dialect.rs    # MySQL方言实现
+├── postgresql_dialect.rs # PostgreSQL方言实现
+├── sqlserver_dialect.rs # SQL Server方言实现
+└── oracle_dialect.rs   # Oracle方言实现
+```
+
 #### bin/ 目录
 
 该目录包含了项目的可执行二进制文件，主要用于测试和运行SQL解析引擎：
 
 ```
 bin/
-├── run_tests.rs        # 测试运行器，支持多种测试命令
-└── xlsx_test_runner.rs # Excel测试用例运行器，支持从Excel文件读取SQL测试用例
+├── excel_sql_tester.rs # Excel测试用例运行器，支持从Excel文件读取SQL测试用例并完整显示结果
 ```
+
+**excel_sql_tester.rs** 是一个功能强大的测试工具，可以：
+- 从Excel文件读取SQL测试用例
+- 支持多种数据库类型的SQL语句测试
+- 完整显示SQL语句内容，不进行截断
+- 输出详细的解析结果，包括库、表、schema、列信息
+- 提供性能统计信息，如解析率、EPS等
 
 #### core/ 目录
 
@@ -74,27 +92,39 @@ bin/
 
 ```
 core/
-├── ast_visitor.rs      # AST（抽象语法树）访问器实现
-├── database_specific.rs # 数据库特定功能处理
-├── enhanced_parser.rs  # 增强的SQL解析器
-├── error.rs            # 错误定义和处理
-├── mod.rs              # 核心模块定义
-├── parser.rs           # SQL解析器实现
-├── piped_sql.rs        # Piped SQL处理
-├── sql_transpiler.rs   # SQL转译器
-├── types.rs            # 核心数据类型定义
-└── utils/              # 核心工具函数
+├── ast_visitor.rs               # AST（抽象语法树）访问器实现
+├── database_specific.rs         # 数据库特定功能处理
+├── enhanced_parser.rs           # 增强的SQL解析器（早期版本）
+├── enhanced_parser_improved.rs  # 改进的增强解析器
+├── enhanced_parser_improved_optimized.rs # 优化的增强解析器，提供关键字过滤功能
+├── error.rs                     # 错误定义和处理
+├── mod.rs                       # 核心模块定义
+├── parser.rs                    # SQL解析器实现
+├── piped_sql.rs                 # Piped SQL处理
+├── sql_transpiler.rs            # SQL转译器
+├── types.rs                     # 核心数据类型定义
+└── utils/                       # 核心工具函数
 ```
 
-#### examples/ 目录
-
-该目录包含了SQL解析引擎的使用示例代码：
+**utils/ 子目录**：
 
 ```
-examples/
-├── basic_usage.rs      # 基本使用示例
-└── multi_database_test.rs # 多数据库支持测试示例
+utils/
+├── mod.rs              # 核心工具模块定义
+├── sql_identifier.rs   # SQL标识符处理工具
+└── string_utils.rs     # 字符串处理工具
 ```
+
+**enhanced_parser_improved_optimized.rs** 是引擎的核心组件之一，主要功能：
+- 实现全面的SQL关键字过滤算法
+- 准确识别表名、列名、库名和模式名
+- 支持多语言标识符（包括中文）处理
+- 提供高性能的标识符验证功能
+- 通过多重过滤策略提高解析准确性
+
+该组件是解决SQL关键字错误识别问题的关键，性能测试显示可达到每秒处理39万条SQL语句的能力。
+
+
 
 #### utils/ 目录
 
@@ -122,15 +152,16 @@ docs/
 
 ### 3. tests/ - 测试文件目录
 
-该目录包含项目的测试文件：
+该目录包含项目的测试文件和测试数据：
 
 ```
 tests/
 ├── DSP解析与策略能力列表 (1).xlsx # DSP解析测试用例
-├── benchmarks/          # 性能基准测试
-│   └── parser_benchmark.rs # SQL解析性能测试
+├── excel_sql_tester.rs  # Excel测试器测试代码
+├── performance/         # 性能测试目录
+│   └── eps_test.rs      # EPS性能测试
+├── performance_benchmark.rs # 性能基准测试
 └── 安恒词法解析（复杂查询） (1).xlsx # 复杂SQL查询测试用例
-```
 
 ### 4. config/ - 配置文件目录
 
@@ -198,14 +229,17 @@ cargo build --release
 ### 运行测试
 
 ```bash
-# 使用测试运行器
-cargo run --release --bin run_tests
+# 运行单元测试
+cargo test
 
-# 运行Excel测试用例
-cargo run --release --bin xlsx_test_runner tests/安恒词法解析（复杂查询）\ \(1\).xlsx
+# 运行集成测试
+cargo test --test integration_tests
 
-# 使用便捷脚本运行部分测试
-./run_first_few_tests.sh
+# 运行性能测试
+cargo test --test performance/eps_test
+
+# 使用Excel测试运行器
+cargo run --bin excel_sql_tester tests/安恒词法解析（复杂查询）\ \(1\).xlsx
 ```
 
 ### 运行示例

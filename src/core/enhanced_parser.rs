@@ -2,7 +2,7 @@
 // 提供更强大的SQL解析功能，特别是针对复杂SQL和边缘情况
 
 use crate::core::error::{ParseError, Result};
-use crate::core::types::{DatabaseType, ParseResult, EnhancedParseResult, SqlLineage, ExpressionInfo};
+use crate::core::types::{DatabaseType, ParseResult, EnhancedParseResult};
 use crate::core::DatabaseSpecificHandler;
 use sqlparser::dialect::Dialect;
 use sqlparser::parser::Parser;
@@ -356,7 +356,7 @@ impl EnhancedSqlParser {
                     let required_chars = [('m', i-1), ('o', i-2), ('r', i-3), ('f', i-4), (' ', i-5)];
                     
                     for &(expected_char, pos) in &required_chars {
-                        if pos < 0 || pos >= len || chars[pos].1 != expected_char {
+                        if pos >= len || chars[pos].1 != expected_char {
                             is_from = false;
                             break;
                         }
@@ -373,7 +373,7 @@ impl EnhancedSqlParser {
                     let required_chars = [('n', i-1), ('i', i-2), ('o', i-3), ('j', i-4)];
                     
                     for &(expected_char, pos) in &required_chars {
-                        if pos < 0 || pos >= len || chars[pos].1 != expected_char {
+                        if pos >= len || chars[pos].1 != expected_char {
                             is_join = false;
                             break;
                         }

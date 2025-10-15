@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use crate::core::error::Result;
+
 
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
@@ -38,18 +38,13 @@ pub struct PerformanceMonitor {
 
 impl PerformanceMonitor {
     pub fn new() -> Self {
-        Self {
-            metrics: PerformanceMetrics::default(),
-            operation_times: Vec::new(),
-            start_time: Instant::now(),
-            database_metrics: HashMap::new(),
-        }
+        Self::default()
     }
-
-    pub fn start_operation(&mut self) -> OperationTimer {
+    
+    pub fn start_operation(&mut self) -> OperationTimer<'_> {
         OperationTimer::new(self)
     }
-
+    
     pub fn record_operation(&mut self, duration: Duration, success: bool, database_type: Option<&str>) {
         // 更新总体指标
         self.metrics.total_operations += 1;
@@ -83,7 +78,7 @@ impl PerformanceMonitor {
 
         // 更新数据库特定指标
         if let Some(db_type) = database_type {
-            let db_metrics = self.database_metrics.entry(db_type.to_string()).or_insert_with(PerformanceMetrics::default);
+            let db_metrics = self.database_metrics.entry(db_type.to_string()).or_default();
             db_metrics.total_operations += 1;
             if success {
                 db_metrics.successful_operations += 1;
@@ -108,22 +103,22 @@ impl PerformanceMonitor {
             }
         }
     }
-
+    
     pub fn get_metrics(&self) -> &PerformanceMetrics {
         &self.metrics
     }
-
+    
     pub fn get_database_metrics(&self) -> &HashMap<String, PerformanceMetrics> {
         &self.database_metrics
     }
-
+    
     pub fn reset(&mut self) {
         self.metrics = PerformanceMetrics::default();
         self.operation_times.clear();
         self.start_time = Instant::now();
         self.database_metrics.clear();
     }
-
+    
     pub fn get_percentile(&self, percentile: f64) -> Option<Duration> {
         if self.operation_times.is_empty() {
             return None;
@@ -136,6 +131,7 @@ impl PerformanceMonitor {
         Some(times.get(index).cloned().unwrap_or(Duration::from_millis(0)))
     }
 
+    
     pub fn get_summary(&self) -> String {
         let metrics = self.get_metrics();
         format!(
@@ -167,6 +163,19 @@ impl PerformanceMonitor {
             self.get_percentile(95.0).unwrap_or(Duration::from_millis(0)),
             self.get_percentile(99.0).unwrap_or(Duration::from_millis(0))
         )
+    }
+    
+
+}
+
+impl Default for PerformanceMonitor {
+    fn default() -> Self {
+        Self {
+            metrics: PerformanceMetrics::default(),
+            operation_times: Vec::new(),
+            database_metrics: HashMap::new(),
+            start_time: Instant::now(),
+        }
     }
 }
 

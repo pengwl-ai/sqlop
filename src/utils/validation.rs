@@ -1,4 +1,4 @@
-use crate::core::error::{ParseError, Result};
+use crate::core::error::Result;
 use crate::core::types::DatabaseType;
 use crate::core::types::OperationType;
 use regex::Regex;
@@ -165,8 +165,8 @@ impl SqlValidator {
         let mut in_single_quote = false;
         let mut in_double_quote = false;
         
-        for (_line_num, line) in lines.iter().enumerate() {
-            for (_col_num, ch) in line.chars().enumerate() {
+        for line in lines.iter() {
+            for ch in line.chars() {
                 match ch {
                     '\'' if !in_double_quote => in_single_quote = !in_single_quote,
                     '"' if !in_single_quote => in_double_quote = !in_double_quote,
@@ -573,8 +573,6 @@ mod tests {
 
 /// 增强的SQL安全检查器，提供细粒度的安全验证功能
 pub struct SqlSecurityChecker {
-    /// 数据库类型
-    database_type: DatabaseType,
     /// 允许的操作类型列表
     allowed_operations: Vec<OperationType>,
     /// 敏感表名列表
@@ -589,7 +587,7 @@ pub struct SqlSecurityChecker {
 
 impl SqlSecurityChecker {
     /// 创建新的SQL安全检查器
-    pub fn new(database_type: DatabaseType) -> Self {
+    pub fn new(_database_type: DatabaseType) -> Self {
         let default_operations = vec![
             OperationType::SELECT,
             OperationType::INSERT,
@@ -607,7 +605,6 @@ impl SqlSecurityChecker {
         ];
         
         Self {
-            database_type,
             allowed_operations: default_operations,
             sensitive_tables: Vec::new(),
             sensitive_columns: Vec::new(),

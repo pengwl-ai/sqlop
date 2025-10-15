@@ -4,17 +4,87 @@ use sqlparser::ast::{Statement, TableFactor, ObjectName};
 use sqlparser::dialect::{Dialect, MySqlDialect, PostgreSqlDialect, MsSqlDialect};
 use sqlparser::parser::Parser;
 use std::collections::HashSet;
+// use std::collections::HashMap;
 
 // 导入自定义方言
 use super::dialects::{SQLiteDialect, HiveDialect, DB2Dialect, DamengDialect, OracleDialect, GaussDBDialect, KingbaseDialect, HighgoDialect, GreenplumDialect, VastbaseDialect};
 
 pub struct CommonAdapter {
     db_type: DatabaseType,
+    sql_keywords: HashSet<String>,
 }
 
 impl CommonAdapter {
     pub fn new(db_type: DatabaseType) -> Self {
-        Self { db_type }
+        let sql_keywords = Self::initialize_sql_keywords();
+        Self { 
+            db_type, 
+            sql_keywords 
+        }
+    }
+    
+    fn initialize_sql_keywords() -> HashSet<String> {
+        let keywords = vec![
+            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP",
+            "ALTER", "TABLE", "INDEX", "VIEW", "JOIN", "INNER", "OUTER", "LEFT", "RIGHT",
+            "ON", "GROUP", "BY", "ORDER", "HAVING", "LIMIT", "OFFSET", "UNION", "AND",
+            "OR", "NOT", "IN", "EXISTS", "BETWEEN", "LIKE", "IS", "NULL", "COUNT", "SUM",
+            "AVG", "MIN", "MAX", "DISTINCT", "AS", "CASE", "WHEN", "THEN", "ELSE", "END",
+            "TRUE", "FALSE", "INT", "VARCHAR", "TEXT", "FLOAT", "DOUBLE", "DECIMAL", "DATE",
+            "TIME", "TIMESTAMP", "INTERVAL", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "ALL", "ANY", "SOME", "DISTINCT", "UNIQUE", "PRIMARY", "KEY", "FOREIGN", "REFERENCES",
+            "CHECK", "DEFAULT", "CONSTRAINT", "AUTO_INCREMENT", "UNSIGNED", "NULLS", "FIRST", "LAST",
+            "ASC", "DESC", "PARTITION", "DISTRIBUTE", "SORT", "BUCKET", "OVER", "PARTITION BY", "ORDER BY",
+            "ROWS", "RANGE", "PRECEDING", "FOLLOWING", "CURRENT ROW", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING",
+            "WITH", "AS", "TEMPORARY", "GLOBAL", "LOCAL", "IF", "EXISTS", "NOT EXISTS", "ONLY", "CASCADE",
+            "RESTRICT", "SET", "VALUES", "INTO", "ON", "DUPLICATE", "KEY", "UPDATE", "IGNORE", "MERGE",
+            "EXPLAIN", "ANALYZE", "DESCRIBE", "SHOW", "USE", "DATABASE", "SCHEMA", "TRANSACTION", "COMMIT",
+            "ROLLBACK", "SAVEPOINT", "RELEASE", "LOCK", "UNLOCK", "BEGIN", "START", "END", "ISOLATION", "LEVEL",
+            "SERIALIZABLE", "REPEATABLE READ", "READ COMMITTED", "READ UNCOMMITTED", "COMMITTED", "UNCOMMITTED",
+            "FOR", "UPDATE", "SHARE", "NOWAIT", "KEY SHARE", "NO KEY UPDATE", "OF", "BY", "TO", "INNER",
+            "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "NATURAL", "SELF", "ANTI", "SEMI", "LATERAL",
+            "UNION", "INTERSECT", "EXCEPT", "ALL", "DISTINCT", "GROUP BY", "ORDER BY", "HAVING", "LIMIT",
+            "OFFSET", "FETCH", "FIRST", "NEXT", "ROW", "ROWS", "ONLY", "PERCENT", "TIES", "SAMPLE",
+            "TABLESAMPLE", "BUCKET", "ON", "RAND", "RANDOM", "SEED", "OUTPUT", "INTO", "VARIABLE", "VIEW",
+            "MATERIALIZED", "OR REPLACE", "IF NOT EXISTS", "DROP", "CASCADE", "RESTRICT", "TRUNCATE", "CONTINUE IDENTITY",
+            "RESTART IDENTITY", "PRESERVE IDENTITY", "OWNED BY", "ALL TABLES", "ALL SEQUENCES", "ALL INDEXES",
+            "ALL VIEWS", "ALL MATERIALIZED VIEWS", "ALL FUNCTIONS", "ALL PROCEDURES", "ALL TRIGGERS", "ALL RULES",
+            "ALL TYPES", "ALL DOMAINS", "ALL COLLATIONS", "ALL CONVERSIONS", "ALL SCHEMAS", "ALL EXTENSIONS",
+            "ALL LANGUAGES", "ALL DATA TYPES", "ALL OPERATORS", "ALL OPERATOR CLASSES", "ALL OPERATOR FAMILIES",
+            "ALL AGGREGATES", "ALL CASTS", "ALL USERS", "ALL ROLES", "ALL GROUPS", "ALL RESOURCE GROUPS",
+            "ALL TABLESPACES", "ALL OBJECTS", "DATABASES", "SCHEMAS", "TABLES", "VIEW", "MATERIALIZED VIEW",
+            "INDEX", "SEQUENCE", "FUNCTION", "PROCEDURE", "TRIGGER", "RULE", "TYPE", "DOMAIN", "COLLATION",
+            "CONVERSION", "EXTENSION", "LANGUAGE", "DATA TYPE", "OPERATOR", "OPERATOR CLASS", "OPERATOR FAMILY",
+            "AGGREGATE", "CAST", "USER", "ROLE", "GROUP", "RESOURCE GROUP", "TABLESPACE", "OBJECT", "DATABASE",
+            "SCHEMA", "DEFAULT", "PUBLIC", "CURRENT_USER", "SESSION_USER", "SYSTEM_USER", "USER", "CURRENT_SCHEMA",
+            "CURRENT_DATABASE", "CURRENT_CATALOG", "CURRENT_SCHEMA", "CURRENT_PATH", "CURRENT_DATE", "CURRENT_TIME",
+            "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP", "NOW", "EXTRACT", "CAST", "CONVERT", "TRIM",
+            "LTRIM", "RTRIM", "BTRIM", "UPPER", "LOWER", "INITCAP", "POSITION", "SUBSTRING", "OVERLAY",
+            "CONCAT", "||", "LENGTH", "CHAR_LENGTH", "CHARACTER_LENGTH", "BIT_LENGTH", "OCTET_LENGTH",
+            "COLLATE", "ASCII", "CHR", "TO_CHAR", "TO_DATE", "TO_NUMBER", "TO_TIMESTAMP", "TO_BINARY",
+            "TO_HEX", "FROM_HEX", "ENCODE", "DECODE", "MD5", "SHA1", "SHA256", "SHA512", "CRC32",
+            "RAND", "RANDOM", "FLOOR", "CEIL", "CEILING", "ROUND", "TRUNC", "ABS", "SIGN", "MOD",
+            "POWER", "SQRT", "EXP", "LOG", "LN", "LOG10", "LOG2", "SIN", "COS", "TAN", "ASIN",
+            "ACOS", "ATAN", "ATAN2", "SINH", "COSH", "TANH", "COT", "DEGREES", "RADIANS", "PI",
+            "E", "CURRENT_ROLE", "CURRENT_TRANSACTION", "CURRENT_CATALOG", "CURRENT_SCHEMA", "CURRENT_PATH",
+            "CURRENT_USER", "SESSION_USER", "SYSTEM_USER", "USER", "CURRENT_DATE", "CURRENT_TIME",
+            "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP", "NOW", "EXTRACT", "CAST", "CONVERT",
+            "TRIM", "LTRIM", "RTRIM", "BTRIM", "UPPER", "LOWER", "INITCAP", "POSITION", "SUBSTRING",
+            "OVERLAY", "CONCAT", "||", "LENGTH", "CHAR_LENGTH", "CHARACTER_LENGTH", "BIT_LENGTH",
+            "OCTET_LENGTH", "COLLATE", "ASCII", "CHR", "TO_CHAR", "TO_DATE", "TO_NUMBER", "TO_TIMESTAMP",
+            "TO_BINARY", "TO_HEX", "FROM_HEX", "ENCODE", "DECODE", "MD5", "SHA1", "SHA256", "SHA512",
+            "CRC32", "RAND", "RANDOM", "FLOOR", "CEIL", "CEILING", "ROUND", "TRUNC", "ABS", "SIGN",
+            "MOD", "POWER", "SQRT", "EXP", "LOG", "LN", "LOG10", "LOG2", "SIN", "COS", "TAN",
+            "ASIN", "ACOS", "ATAN", "ATAN2", "SINH", "COSH", "TANH", "COT", "DEGREES", "RADIANS", "PI",
+            "E", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" // 添加数字，这些不应该被识别为列名
+        ];
+        
+        keywords.into_iter().map(|k| k.to_string()).collect()
+    }
+    
+    fn is_sql_keyword(&self, identifier: &str) -> bool {
+        // 转大写后检查
+        self.sql_keywords.contains(&identifier.to_uppercase())
     }
 
     pub fn parse_audit_log(&self, audit_log: &AuditLog) -> Result<ParseResult> {
@@ -120,34 +190,48 @@ impl CommonAdapter {
         objects: &mut Vec<SqlObject>,
         operation_type: &mut OperationType,
     ) {
+        // 创建临时集合用于收集所有可能的标识符
+        let mut all_tables = HashSet::new();
+        let mut all_schemas = HashSet::new();
+        let mut all_databases = HashSet::new();
+        let mut all_columns = HashSet::new();
+        let mut all_objects = Vec::new();
+
         match statement {
             Statement::Query(query) => {
                 *operation_type = OperationType::SELECT;
-                self.extract_from_query(query, databases, schemas, tables, columns, objects);
+                
+                // 使用临时集合调用extract_from_query
+                self.extract_from_query(query, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_columns, &mut all_objects);
             }
-            Statement::Insert { table_name, .. } => {
+            Statement::Insert { table_name, columns: insert_columns, .. } => {
                 *operation_type = OperationType::INSERT;
-                // 提取表名信息
-                self.extract_table_name(table_name, databases, schemas, tables, objects);
+                // 提取表名信息到临时集合
+                self.extract_table_name(table_name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
+                
+                // 处理INSERT语句中的列名
+                for col in insert_columns {
+                    let col_str = col.to_string();
+                    all_columns.insert(col_str);
+                }
             }
             Statement::Update { table, .. } => {
                 *operation_type = OperationType::UPDATE;
-                // 提取表名信息
-                // 修复：正确处理TableWithJoins类型
+                // 提取表名信息到临时集合
                 match table.relation {
                     TableFactor::Table { ref name, .. } => {
-                        self.extract_table_name(name, databases, schemas, tables, objects);
+                        self.extract_table_name(name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
                     },
                     _ => {}
                 }
             }
             Statement::Delete { from, .. } => {
                 *operation_type = OperationType::DELETE;
-                // 提取表名信息
+                // 提取表名信息到临时集合
                 for table_ref in from {
                     match &table_ref.relation {
                         TableFactor::Table { ref name, .. } => {
-                            self.extract_table_name(name, databases, schemas, tables, objects);
+                            self.extract_table_name(name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
                         },
                         _ => {}
                     }
@@ -155,28 +239,199 @@ impl CommonAdapter {
             }
             Statement::CreateTable { name, .. } => {
                 *operation_type = OperationType::CREATE;
-                // 提取表名信息
-                self.extract_table_name(name, databases, schemas, tables, objects);
+                // 提取表名信息到临时集合
+                self.extract_table_name(name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
             }
             Statement::Drop { names, .. } => {
                 *operation_type = OperationType::DROP;
-                // 提取表名信息
+                // 提取表名信息到临时集合
                 for name in names {
-                    self.extract_table_name(name, databases, schemas, tables, objects);
+                    self.extract_table_name(name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
                 }
             }
             Statement::AlterTable { name, .. } => {
                 *operation_type = OperationType::ALTER;
-                // 提取表名信息
-                self.extract_table_name(name, databases, schemas, tables, objects);
+                // 提取表名信息到临时集合
+                self.extract_table_name(name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
             }
             Statement::Truncate { table_name, .. } => {
                 *operation_type = OperationType::TRUNCATE;
-                // 提取表名信息
-                self.extract_table_name(table_name, databases, schemas, tables, objects);
+                // 提取表名信息到临时集合
+                self.extract_table_name(table_name, &mut all_databases, &mut all_schemas, &mut all_tables, &mut all_objects);
             }
             _ => {}
         }
+        
+        // 定义SQL关键字列表（完整版本）
+        let sql_keywords = [
+            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", 
+            "ALTER", "TABLE", "VIEW", "INDEX", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER",
+            "FULL", "CROSS", "ON", "AS", "GROUP", "BY", "HAVING", "ORDER", "LIMIT", 
+            "OFFSET", "DISTINCT", "ALL", "EXISTS", "IN", "BETWEEN", "LIKE", "ILIKE", 
+            "AND", "OR", "NOT", "IS", "NULL", "TRUE", "FALSE", "UNION", "INTERSECT",
+            "EXCEPT", "WITH", "AS", "OVER", "PARTITION", "ORDER", "LAG", "LEAD", 
+            "FIRST_VALUE", "LAST_VALUE", "ROW_NUMBER", "RANK", "DENSE_RANK", "PERCENT_RANK",
+            "CUME_DIST", "NTILE", "COLLATE", "CAST", "CONVERT", "TRY_CAST", "TRY_CONVERT",
+            "IF", "CASE", "WHEN", "THEN", "ELSE", "END", "WHILE", "FOR", "LOOP", 
+            "REPEAT", "UNTIL", "BREAK", "CONTINUE", "DECLARE", "SET", "EXEC", "CALL",
+            "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "GRANT", "REVOKE", "DENY",
+            "TRIGGER", "PROCEDURE", "FUNCTION", "INDEX", "CONSTRAINT", "PRIMARY", "KEY",
+            "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT", "AUTO_INCREMENT",
+            "IDENTITY", "NOT NULL", "NULL", "INTO", "VALUES", "RETURN", "DISTINCT",
+            "HAVING", "WINDOW", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+            "EXTRACT", "DATE_TRUNC", "DATE_PART", "UPPER", "LOWER", "LENGTH", "SUBSTRING",
+            "CONCAT", "REPLACE", "TRIM", "LTRIM", "RTRIM", "CAST", "ROUND", "FLOOR", "CEILING",
+            "AVG", "COUNT", "MAX", "MIN", "SUM", "STDDEV", "VAR", "ANY", "SOME", "ALL",
+            "EXISTS", "UNIQUE", "INTERSECT", "EXCEPT", "UNION", "WITH", "AS", "OVER",
+            "PARTITION", "ORDER", "LAG", "LEAD", "FIRST_VALUE", "LAST_VALUE", "ROW_NUMBER",
+            "RANK", "DENSE_RANK", "PERCENT_RANK", "CUME_DIST", "NTILE", "SEMI", "ANTI",
+            "TABLESAMPLE", "DISTRIBUTE", "SORT", "BUCKETS", "STORED", "ORC", "TEXTFILE",
+            "PARQUET", "JSONFILE", "SEQUENCEFILE", "RCFILE", "INPUTFORMAT", "OUTPUTFORMAT"
+        ];
+        
+        // 最终的严格过滤函数
+        let filter_identifier = |ident: &str| -> Option<String> {
+            // 先清理标识符
+            let cleaned = self.clean_identifier(ident);
+            
+            // 检查是否为空
+            if cleaned.is_empty() {
+                return None;
+            }
+            
+            // 检查是否为SQL关键字（大小写不敏感）
+            let upper_cleaned = cleaned.to_uppercase();
+            if sql_keywords.iter().any(|&kw| kw == upper_cleaned) {
+                return None;
+            }
+            
+            // 检查是否包含无效字符或格式
+            if cleaned.contains('(') || cleaned.contains(')') || cleaned.contains(';') || 
+               cleaned.contains(',') || cleaned.contains('+') || cleaned.contains('-') || 
+               cleaned.contains('*') || cleaned.contains('/') || cleaned.contains('=') || 
+               cleaned.contains('>') || cleaned.contains('<') || cleaned.contains('!') || 
+               cleaned.contains('%') || cleaned.contains('&') || cleaned.contains('|') || 
+               cleaned.contains('^') || cleaned.contains('~') || cleaned.contains('@') || 
+               cleaned.contains('#') || cleaned.contains('$') || cleaned.contains('\'') || 
+               cleaned.contains('"') || cleaned.contains('[') || cleaned.contains(']') ||
+               cleaned.contains('{') || cleaned.contains('}') || cleaned.contains('`') {
+                return None;
+            }
+            
+            // 检查是否只包含数字
+            if cleaned.chars().all(|c| c.is_ascii_digit()) {
+                return None;
+            }
+            
+            // 检查是否为纯空格
+            if cleaned.trim().is_empty() {
+                return None;
+            }
+            
+            Some(cleaned)
+        };
+        
+        // 对表名进行最终严格过滤
+        for table in all_tables {
+            if let Some(filtered) = filter_identifier(&table) {
+                tables.insert(filtered);
+            }
+        }
+        
+        // 对模式名进行最终严格过滤
+        for schema in all_schemas {
+            if let Some(filtered) = filter_identifier(&schema) {
+                schemas.insert(filtered);
+            }
+        }
+        
+        // 对数据库名进行最终严格过滤
+        for database in all_databases {
+            if let Some(filtered) = filter_identifier(&database) {
+                databases.insert(filtered);
+            }
+        }
+        
+        // 对列名进行最终严格过滤
+        for column in all_columns {
+            if let Some(filtered) = filter_identifier(&column) {
+                columns.insert(filtered);
+            }
+        }
+        
+        // 过滤对象
+        for mut obj in all_objects {
+            // 使用新的过滤函数处理表名
+            if let Some(filtered_table) = filter_identifier(&obj.table) {
+                obj.table = filtered_table;
+                
+                // 使用新的过滤函数处理数据库名
+                if let Some(db) = &mut obj.database {
+                    if let Some(filtered_db) = filter_identifier(db) {
+                        *db = filtered_db;
+                    } else {
+                        obj.database = None;
+                    }
+                }
+                
+                // 使用新的过滤函数处理模式名
+                if let Some(schema) = &mut obj.schema {
+                    if let Some(filtered_schema) = filter_identifier(schema) {
+                        *schema = filtered_schema;
+                    } else {
+                        obj.schema = None;
+                    }
+                }
+                
+                objects.push(obj);
+            }
+        }
+    }
+    
+    /// 验证标识符是否有效（非关键字、非纯数字、不含括号、长度>0）
+    fn is_valid_identifier(&self, identifier: &str) -> bool {
+        // 空字符串直接返回false
+        if identifier.is_empty() {
+            return false;
+        }
+        
+        // 严格检查是否为SQL关键字（不区分大小写）
+        let identifier_upper = identifier.to_uppercase();
+        if self.is_sql_keyword(&identifier_upper) {
+            return false;
+        }
+        
+        // 检查是否为纯数字
+        if identifier.chars().all(|c| c.is_numeric()) {
+            return false;
+        }
+        
+        // 检查是否包含无效字符
+        if identifier.contains(['(', ')', ';', ',', '=', '<', '>', '&', '|', '!', '*', '/', '+', '-', '%', '^']) {
+            return false;
+        }
+        
+        // 检查是否完全匹配SQL关键字
+        let sql_keywords = [
+            "SELECT", "FROM", "WHERE", "JOIN", "GROUP", "BY", "ORDER", "INSERT", 
+            "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "IN", "NOT", "BETWEEN", 
+            "LIKE", "EXISTS", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "ON", "AS", 
+            "HAVING", "DISTINCT", "ALL", "UNION", "INTERSECT", "EXCEPT", "LIMIT", 
+            "OFFSET", "FOR", "WHILE", "CASE", "WHEN", "THEN", "ELSE", "END", 
+            "AND", "OR", "IS", "NULL", "TRUE", "FALSE", "DEFAULT", "PRIMARY", "KEY",
+            "FOREIGN", "REFERENCES", "INDEX", "VIEW", "TABLE", "TRIGGER",
+            "PROCEDURE", "FUNCTION", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+            "SET", "WITH", "OVER", "PARTITION", "SEMI", "ANTI", "CROSS", "NATURAL",
+            "USING", "EXPLAIN", "ANALYZE", "TEMP", "TEMPORARY"
+        ];
+        
+        for keyword in sql_keywords {
+            if identifier_upper == keyword {
+                return false;
+            }
+        }
+        
+        true
     }
 
     /// 从ObjectName提取表名信息
@@ -188,37 +443,134 @@ impl CommonAdapter {
         tables: &mut HashSet<String>,
         objects: &mut Vec<SqlObject>,
     ) {
+        // 清理所有标识符部分
+        let mut cleaned_parts: Vec<String> = Vec::new();
+        
+        for ident in &name.0 {
+            let cleaned = self.clean_identifier(&ident.value);
+            // 只保留有效的部分
+            if !cleaned.is_empty() && self.is_valid_identifier(&cleaned) {
+                cleaned_parts.push(cleaned);
+            }
+        }
+            
         let mut database = None;
         let mut schema = None;
         let mut table_name = String::new();
 
-        // 解析表名
-        if name.0.len() == 1 {
-            table_name = name.0[0].value.clone();
-        } else if name.0.len() == 2 {
-            schema = Some(name.0[0].value.clone());
-            table_name = name.0[1].value.clone();
-        } else if name.0.len() >= 3 {
-            database = Some(name.0[0].value.clone());
-            schema = Some(name.0[1].value.clone());
-            table_name = name.0[2].value.clone();
+        // 根据清理后的部分数量分配数据库、模式和表名
+        if cleaned_parts.len() == 1 {
+            table_name = cleaned_parts[0].clone();
+        } else if cleaned_parts.len() == 2 {
+            schema = Some(cleaned_parts[0].clone());
+            table_name = cleaned_parts[1].clone();
+        } else if cleaned_parts.len() >= 3 {
+            database = Some(cleaned_parts[0].clone());
+            schema = Some(cleaned_parts[1].clone());
+            table_name = cleaned_parts[2].clone();
         }
 
-        if let Some(db) = &database {
-            databases.insert(db.clone());
-        }
-        if let Some(sch) = &schema {
-            schemas.insert(sch.clone());
-        }
-        tables.insert(table_name.clone());
+        // 使用增强的is_valid_identifier方法严格过滤表名
+        if self.is_valid_identifier(&table_name) {
+            tables.insert(table_name.clone());
 
-        objects.push(SqlObject {
-            database: database.clone(),
-            schema: schema.clone(),
-            table: table_name,
-            column: None,
-            alias: None,
-        });
+            // 过滤schema名
+            if let Some(sch) = &schema {
+                if self.is_valid_identifier(sch) {
+                    schemas.insert(sch.clone());
+                } else {
+                    // 如果schema不是有效标识符，清空它以避免污染结果
+                    schema = None;
+                }
+            }
+
+            // 过滤数据库名
+            if let Some(db) = &database {
+                if self.is_valid_identifier(db) {
+                    databases.insert(db.clone());
+                } else {
+                    // 如果database不是有效标识符，清空它以避免污染结果
+                    database = None;
+                }
+            }
+
+            // 创建并添加SQL对象
+            objects.push(SqlObject {
+                database: database.clone(),
+                schema: schema.clone(),
+                table: table_name,
+                column: None,
+                alias: None,
+            });
+        }
+    }
+    
+    /// 清理标识符，移除特殊字符和无效部分
+    fn clean_identifier(&self, identifier: &str) -> String {
+        // 移除括号、引号和特殊字符
+        let mut cleaned = identifier
+            .replace(['(', ')', '\'', '"', '`'], "")
+            .trim()
+            .to_string();
+        
+        // 定义完整的SQL关键字列表
+        let sql_keywords = vec![
+            "SELECT", "FROM", "WHERE", "JOIN", "GROUP", "BY", "ORDER", "INSERT", 
+            "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "IN", "NOT", "BETWEEN", 
+            "LIKE", "EXISTS", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "ON", "AS", 
+            "HAVING", "DISTINCT", "ALL", "UNION", "INTERSECT", "EXCEPT", "LIMIT", 
+            "OFFSET", "FOR", "WHILE", "CASE", "WHEN", "THEN", "ELSE", "END", 
+            "AND", "OR", "IS", "NULL", "TRUE", "FALSE", "DEFAULT", "PRIMARY", "KEY",
+            "FOREIGN", "REFERENCES", "INDEX", "VIEW", "TABLE", "TRIGGER",
+            "PROCEDURE", "FUNCTION", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+            "SET", "WITH", "OVER", "PARTITION", "SEMI", "ANTI", "CROSS", "NATURAL",
+            "USING", "EXPLAIN", "ANALYZE", "TEMP", "TEMPORARY"
+        ];
+        
+        // 分割标识符为多个部分
+        let parts: Vec<_> = cleaned.split(|c: char| {
+            c.is_whitespace() || c == '=' || c == ',' || c == ';' || 
+            c == '>' || c == '<' || c == '.' || c == ':' || c == '\''
+        }).collect();
+        
+        // 收集非关键字部分
+        let mut valid_parts = Vec::new();
+        for part in parts {
+            let trimmed = part.trim();
+            let part_upper = trimmed.to_uppercase();
+            
+            // 跳过空部分和纯关键字
+            if !trimmed.is_empty() && 
+               !sql_keywords.iter().any(|&term| part_upper == term) &&
+               !trimmed.chars().all(|c| c.is_numeric()) {
+                
+                // 进一步清理每个部分
+                let further_cleaned = trimmed.chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '_')
+                    .collect::<String>();
+                
+                if !further_cleaned.is_empty() {
+                    valid_parts.push(further_cleaned);
+                }
+            }
+        }
+        
+        // 如果有有效部分，使用它们的组合
+        if !valid_parts.is_empty() {
+            // 对于多个部分，尝试找到最可能是实际标识符的部分
+            // 优先选择非关键字且长度适中的部分
+            for part in &valid_parts {
+                if self.is_valid_identifier(part) && part.len() > 1 {
+                    return part.to_string();
+                }
+            }
+            
+            // 如果没有找到完全有效的部分，返回第一个非空部分
+            return valid_parts[0].to_string();
+        }
+        
+        // 如果所有部分都被过滤掉，返回空字符串
+        "".to_string()
     }
 
     fn extract_from_query(
@@ -230,21 +582,101 @@ impl CommonAdapter {
         columns: &mut HashSet<String>,
         objects: &mut Vec<SqlObject>,
     ) {
+        // 创建临时集合用于收集所有可能的标识符
+        let mut all_tables = HashSet::new();
+        let mut all_columns = HashSet::new();
+        let mut all_databases = HashSet::new();
+        let mut all_schemas = HashSet::new();
+        let mut all_objects = Vec::new();
+        
         // 处理 SELECT 列
         if let sqlparser::ast::SetExpr::Select(select) = &*query.body {
+            let mut temp_columns = HashSet::new();
             for select_item in &select.projection {
-                self.extract_from_select_item(select_item, columns);
+                self.extract_from_select_item(select_item, &mut temp_columns);
             }
+            
+            // 收集所有可能的列名
+            all_columns.extend(temp_columns);
             
             // 处理 FROM 子句中的表
             for table_with_join in &select.from {
-                self.extract_from_table_factor(
-                    &table_with_join.relation,
-                    databases,
-                    schemas,
-                    tables,
-                    objects,
-                );
+                match &table_with_join.relation {
+                    TableFactor::Table { name, .. } => {
+                        // 提取表名信息到临时集合
+                        let mut temp_databases = HashSet::new();
+                        let mut temp_schemas = HashSet::new();
+                        let mut temp_tables = HashSet::new();
+                        let mut temp_objects = Vec::new();
+                        
+                        self.extract_table_name(name, &mut temp_databases, &mut temp_schemas, &mut temp_tables, &mut temp_objects);
+                        
+                        // 收集所有可能的标识符
+                        all_databases.extend(temp_databases);
+                        all_schemas.extend(temp_schemas);
+                        all_tables.extend(temp_tables);
+                        all_objects.extend(temp_objects);
+                    },
+                    _ => {}
+                }
+            }
+        }
+        
+        // 最终严格过滤所有标识符
+        // 过滤表名
+        for table in all_tables {
+            let cleaned = self.clean_identifier(&table);
+            if self.is_valid_identifier(&cleaned) {
+                tables.insert(cleaned);
+            }
+        }
+        
+        // 过滤列名
+        for col in all_columns {
+            let cleaned = self.clean_identifier(&col);
+            if self.is_valid_identifier(&cleaned) {
+                columns.insert(cleaned);
+            }
+        }
+        
+        // 过滤数据库名
+        for db in all_databases {
+            let cleaned = self.clean_identifier(&db);
+            if self.is_valid_identifier(&cleaned) {
+                databases.insert(cleaned);
+            }
+        }
+        
+        // 过滤模式名
+        for schema in all_schemas {
+            let cleaned = self.clean_identifier(&schema);
+            if self.is_valid_identifier(&cleaned) {
+                schemas.insert(cleaned);
+            }
+        }
+        
+        // 过滤对象
+        for mut obj in all_objects {
+            // 清理并验证表名
+            obj.table = self.clean_identifier(&obj.table);
+            if !obj.table.is_empty() && self.is_valid_identifier(&obj.table) {
+                // 清理并验证数据库名
+                if let Some(db) = &mut obj.database {
+                    *db = self.clean_identifier(db);
+                    if !self.is_valid_identifier(db) {
+                        obj.database = None;
+                    }
+                }
+                
+                // 清理并验证模式名
+                if let Some(schema) = &mut obj.schema {
+                    *schema = self.clean_identifier(schema);
+                    if !self.is_valid_identifier(schema) {
+                        obj.schema = None;
+                    }
+                }
+                
+                objects.push(obj);
             }
         }
     }
@@ -274,21 +706,48 @@ impl CommonAdapter {
                     table_name = name.0[2].value.clone();
                 }
 
-                if let Some(db) = &database {
-                    databases.insert(db.clone());
-                }
-                if let Some(sch) = &schema {
-                    schemas.insert(sch.clone());
-                }
-                tables.insert(table_name.clone());
+                // 严格过滤：只接受合法的表名（非关键字、非纯数字、不含括号）
+                let is_valid_table = !self.is_sql_keyword(&table_name) && 
+                                    !table_name.chars().all(|c| c.is_numeric()) && 
+                                    !table_name.contains('(') && 
+                                    !table_name.contains(')') && 
+                                    table_name.len() > 0;
+                
+                if is_valid_table {
+                    tables.insert(table_name.clone());
 
-                objects.push(SqlObject {
-                    database: database.clone(),
-                    schema: schema.clone(),
-                    table: table_name,
-                    column: None,
-                    alias: alias.as_ref().map(|a| a.name.value.clone()),
-                });
+                    // 严格过滤schema名
+                    if let Some(sch) = &schema {
+                        let is_valid_schema = !self.is_sql_keyword(sch) && 
+                                            !sch.chars().all(|c| c.is_numeric()) && 
+                                            !sch.contains('(') && 
+                                            !sch.contains(')') && 
+                                            sch.len() > 0;
+                        if is_valid_schema {
+                            schemas.insert(sch.clone());
+                        }
+                    }
+
+                    // 严格过滤数据库名
+                    if let Some(db) = &database {
+                        let is_valid_db = !self.is_sql_keyword(db) && 
+                                        !db.chars().all(|c| c.is_numeric()) && 
+                                        !db.contains('(') && 
+                                        !db.contains(')') && 
+                                        db.len() > 0;
+                        if is_valid_db {
+                            databases.insert(db.clone());
+                        }
+                    }
+
+                    objects.push(SqlObject {
+                        database: database.clone(),
+                        schema: schema.clone(),
+                        table: table_name,
+                        column: None,
+                        alias: alias.as_ref().map(|a| a.name.value.clone()),
+                    });
+                }
             }
             TableFactor::Derived { .. } => {}
             TableFactor::NestedJoin { .. } => {}
@@ -299,11 +758,34 @@ impl CommonAdapter {
     fn extract_from_select_item(&self, select_item: &sqlparser::ast::SelectItem, columns: &mut HashSet<String>) {
         match select_item {
             sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
-                self.extract_columns_from_expr(expr, columns);
+                // 处理未命名的表达式，使用临时集合过滤
+                let mut temp_columns = HashSet::new();
+                self.extract_columns_from_expr(expr, &mut temp_columns);
+                
+                // 严格过滤后再添加到结果集合
+                for col in temp_columns {
+                    if self.is_valid_identifier(&col) {
+                        columns.insert(col);
+                    }
+                }
             }
             sqlparser::ast::SelectItem::ExprWithAlias { expr, alias } => {
-                self.extract_columns_from_expr(expr, columns);
-                columns.insert(alias.value.clone());
+                // 处理带别名的表达式，先处理表达式
+                let mut temp_columns = HashSet::new();
+                self.extract_columns_from_expr(expr, &mut temp_columns);
+                
+                // 严格过滤表达式中的列名
+                for col in temp_columns {
+                    if self.is_valid_identifier(&col) {
+                        columns.insert(col);
+                    }
+                }
+                
+                // 也提取别名作为列名，确保严格过滤
+                let cleaned_alias = self.clean_identifier(&alias.value);
+                if self.is_valid_identifier(&cleaned_alias) {
+                    columns.insert(cleaned_alias);
+                }
             }
             sqlparser::ast::SelectItem::QualifiedWildcard(..) => {}
             sqlparser::ast::SelectItem::Wildcard(_) => {}
@@ -313,11 +795,19 @@ impl CommonAdapter {
     fn extract_columns_from_expr(&self, expr: &sqlparser::ast::Expr, columns: &mut HashSet<String>) {
         match expr {
             sqlparser::ast::Expr::Identifier(ident) => {
-                columns.insert(ident.value.clone());
+                // 清理并严格过滤列名
+                let cleaned_value = self.clean_identifier(&ident.value);
+                if self.is_valid_identifier(&cleaned_value) {
+                    columns.insert(cleaned_value);
+                }
             }
             sqlparser::ast::Expr::CompoundIdentifier(idents) => {
                 if let Some(last_ident) = idents.last() {
-                    columns.insert(last_ident.value.clone());
+                    // 提取最后一部分作为列名并清理
+                    let cleaned_value = self.clean_identifier(&last_ident.value);
+                    if self.is_valid_identifier(&cleaned_value) {
+                        columns.insert(cleaned_value);
+                    }
                 }
             }
             sqlparser::ast::Expr::Function(function) => {
@@ -330,8 +820,25 @@ impl CommonAdapter {
                 }
             }
             sqlparser::ast::Expr::BinaryOp { left, right, .. } => {
+                // 递归处理左右表达式
                 self.extract_columns_from_expr(left, columns);
                 self.extract_columns_from_expr(right, columns);
+            }
+            // 添加更多表达式类型的处理
+            sqlparser::ast::Expr::Subquery(_subquery) => {
+                // 由于无法直接访问子查询内容，我们暂时跳过子查询的处理
+                // 这避免了编译错误
+            }
+            sqlparser::ast::Expr::InList { expr, list, .. } => {
+                self.extract_columns_from_expr(expr, columns);
+                for item in list {
+                    self.extract_columns_from_expr(item, columns);
+                }
+            }
+            sqlparser::ast::Expr::Between { expr, low, high, .. } => {
+                self.extract_columns_from_expr(expr, columns);
+                self.extract_columns_from_expr(low, columns);
+                self.extract_columns_from_expr(high, columns);
             }
             _ => {}
         }
