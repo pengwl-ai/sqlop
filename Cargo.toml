@@ -94,28 +94,10 @@ name = "parser_benchmark"
 path = "tests/benchmarks/parser_benchmark.rs"
 harness = false
 
-[[bin]]
-name = "run_tests"
-path = "src/bin/run_tests.rs"
 
-default-run = "run_tests"
 
-[[bin]]
-name = "xlsx_test_runner"
-path = "src/bin/xlsx_test_runner.rs"
 
-[[bin]]
-name = "basic_usage_example"
-path = "src/examples/basic_usage.rs"
-
-[[bin]]
-name = "multi_database_test_example"
-path = "src/examples/multi_database_test.rs"
 
 [[bin]]
 name = "eps_test"
 path = "tests/performance/eps_test.rs"
-
-[[bin]]
-name = "update_structure_test"
-path = "tests/unit/test_update_structure.rs"

@@ -7,9 +7,9 @@ use crate::core::types::{
     PerformanceStats,
 };
 use crate::core::ast_visitor::{ObjectExtractor, SqlAstVisitor};
-use sqlparser::ast::{Statement, TableFactor, ObjectType, Expr, SetExpr};
+use sqlparser::ast::Statement;
 use sqlparser::dialect::{Dialect, MySqlDialect, PostgreSqlDialect, MsSqlDialect};
-use sqlparser::parser::Parser;
+
 use crate::adapters::dialects::enhanced_mysql_dialect::EnhancedMySqlDialect;
 use std::collections::HashSet;
 use std::num::NonZeroUsize;
@@ -153,7 +153,7 @@ impl SqlParser {
                     .par_iter()
                     .with_min_len(batch_size)
                     .map(|log| {
-                        let mut parser = SqlParser::new(config.clone());
+                        let parser = SqlParser::new(config.clone());
                         parser.parse_sql_without_cache(log)
                     })
                     .collect();
@@ -297,10 +297,10 @@ impl SqlParser {
         let result = ParseResult {
             database_type: db_type.clone(),
             original_sql: sql.to_string(),
-            databases: databases,
-            schemas: schemas,
-            tables: tables,
-            columns: columns,
+            databases,
+            schemas,
+            tables,
+            columns,
             objects: Vec::new(),
             operation_type: self.infer_operation_type(sql),
             parse_time_ms: 0
@@ -327,10 +327,10 @@ impl SqlParser {
                     let result = ParseResult {
                         database_type: db_type.clone(),
                         original_sql: sql.to_string(),
-                        databases: databases,
-                        schemas: schemas,
-                        tables: tables,
-                        columns: columns,
+                        databases,
+                        schemas,
+                        tables,
+                        columns,
                         objects: Vec::new(),
                         operation_type: self.infer_operation_type(sql),
                         parse_time_ms: 0

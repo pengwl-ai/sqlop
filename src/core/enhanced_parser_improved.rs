@@ -182,7 +182,7 @@ impl EnhancedSqlParserImproved {
     fn handle_function_calls(
         &self,
         sql_lower: &str,
-        _sql: &str,
+        _sql: &str,  // Unused parameter
         tables: &mut HashSet<String>,
         columns: &mut HashSet<String>,
     ) {
@@ -351,7 +351,7 @@ impl EnhancedSqlParserImproved {
     fn extract_tables_enhanced(
         &self,
         sql_lower: &str,
-        sql: &str,
+        _sql: &str,
         databases: &mut HashSet<String>,
         schemas: &mut HashSet<String>,
         tables: &mut HashSet<String>,
@@ -708,7 +708,7 @@ impl EnhancedSqlParserImproved {
     }
 
     /// 处理窗口函数
-    fn handle_window_functions(&self, sql_lower: &str, _sql: &str, columns: &mut HashSet<String>) {
+    fn handle_window_functions(&self, sql_lower: &str, _sql: &str, columns: &mut HashSet<String>) {  // _sql is intentionally unused
         // 查找窗口函数的OVER子句
         let over_re = Regex::new(r#"over\s*\(.*?\)"#).unwrap();
         for captures in over_re.captures_iter(sql_lower) {

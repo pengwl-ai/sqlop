@@ -1,13 +1,11 @@
 // SQL转换模块
 // 实现不同数据库方言间的SQL转换功能
 
+use sqlparser::dialect::Dialect;
 use crate::core::types::{DatabaseType, ParseResult, ParserConfig, AuditLog};
 use crate::core::parser::SqlParser;
-use crate::core::ast_visitor::{SqlAstVisitor, ObjectExtractor};
-use sqlparser::ast::{Statement, Query, Select, SetExpr, Expr, Ident, UnaryOperator, BinaryOperator, Function, FunctionArg, FunctionArgExpr};
-use sqlparser::dialect::{Dialect, GenericDialect};
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// SQL转换器，负责在不同数据库方言间转换SQL
 pub struct SqlTranspiler {
@@ -252,7 +250,7 @@ impl SpecialSyntaxHandler for GeneralSqlHandler {
 
 /// 根据数据库类型创建对应的方言解析器
 fn create_dialect(database_type: &DatabaseType) -> Box<dyn Dialect> {
-    use sqlparser::dialect::{Dialect, GenericDialect, MySqlDialect, PostgreSqlDialect, MsSqlDialect};
+     use sqlparser::dialect::{GenericDialect, PostgreSqlDialect, MsSqlDialect};
     use crate::adapters::dialects::{EnhancedMySqlDialect, SQLiteDialect, HiveDialect, DB2Dialect, DamengDialect, GaussDBDialect, KingbaseDialect, HighgoDialect, GreenplumDialect, VastbaseDialect};
     
     match database_type {

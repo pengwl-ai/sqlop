@@ -1,14 +1,14 @@
 // 性能优化模块
 // 实现SQL解析器的高级性能优化功能
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 use sqlparser::dialect::GenericDialect;
 use std::sync::Arc;
-use sqlparser::ast::{Statement, SetExpr, Select, TableFactor, TableWithJoins};
+
 use sqlparser::tokenizer::{Token, Tokenizer};
 use crate::core::types::{DatabaseType, ParseResult};
 
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use lru::LruCache;
 use std::num::NonZeroUsize;
 
@@ -20,8 +20,6 @@ pub struct LookaheadOptimizer {
     subquery_cache: LruCache<CacheKey, Arc<LookaheadInfo>>,
     // 连接操作优化信息
     join_optimization_info: LruCache<String, JoinOptimizationInfo>,
-    // 配置参数
-    config: LookaheadConfig,
 }
 
 /// 缓存键，组合SQL和数据库类型
@@ -47,11 +45,6 @@ pub struct LookaheadConfig {
     pattern_cache_size: usize,
     subquery_cache_size: usize,
     join_cache_size: usize,
-    // 复杂SQL阈值
-    complex_sql_token_threshold: usize,
-    complex_sql_brace_threshold: usize,
-    // 并行处理阈值
-    parallel_processing_threshold: usize,
 }
 
 impl Default for LookaheadConfig {
@@ -60,9 +53,6 @@ impl Default for LookaheadConfig {
             pattern_cache_size: 1000,
             subquery_cache_size: 500,
             join_cache_size: 200,
-            complex_sql_token_threshold: 200,
-            complex_sql_brace_threshold: 20,
-            parallel_processing_threshold: 100,
         }
     }
 }
@@ -75,7 +65,6 @@ impl LookaheadOptimizer {
             pattern_cache: LruCache::new(NonZeroUsize::new(config.pattern_cache_size).unwrap()),
             subquery_cache: LruCache::new(NonZeroUsize::new(config.subquery_cache_size).unwrap()),
             join_optimization_info: LruCache::new(NonZeroUsize::new(config.join_cache_size).unwrap()),
-            config,
         }
     }
     

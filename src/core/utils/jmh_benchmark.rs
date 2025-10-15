@@ -3,7 +3,7 @@
 
 use std::time::{Instant, Duration};
 use std::collections::HashMap;
-use std::sync::Arc;
+
 use crate::core::parser::SqlParser;
 use crate::core::types::{AuditLog, DatabaseType, ParserConfig, PerformanceStats};
 

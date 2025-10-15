@@ -2,7 +2,7 @@
 // 实现Piped SQL到标准SQL的转换功能
 
 use std::collections::{HashMap, HashSet};
-use crate::core::types::{DatabaseType, SqlObject, OperationType};
+use crate::core::types::{DatabaseType, SqlObject};
 use regex::Regex;
 
 /// Piped SQL解析器，用于解析和转换Piped SQL语法

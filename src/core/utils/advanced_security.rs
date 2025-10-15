@@ -1,10 +1,9 @@
 // 高级安全检查模块
 // 实现细粒度权限控制和高级SQL安全检查功能
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use regex::Regex;
-use crate::core::types::{DatabaseType, OperationType, SqlObject, ObjectType};
-use crate::core::ast_visitor::{ObjectExtractor, SqlAstVisitor};
+use crate::core::types::{OperationType, SqlObject, ObjectType};
 
 /// 安全规则引擎
 pub struct SecurityRuleEngine {

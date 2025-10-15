@@ -65,8 +65,15 @@ adapters/
 ```
 bin/
 ├── run_tests.rs        # 测试运行器，支持多种测试命令
-└── xlsx_test_runner.rs # Excel测试用例运行器，支持从Excel文件读取SQL测试用例
+└── excel_sql_tester.rs # Excel测试用例运行器，支持从Excel文件读取SQL测试用例并完整显示结果
 ```
+
+**excel_sql_tester.rs** 是一个功能强大的测试工具，可以：
+- 从Excel文件读取SQL测试用例
+- 支持多种数据库类型的SQL语句测试
+- 完整显示SQL语句内容，不进行截断
+- 输出详细的解析结果，包括库、表、schema、列信息
+- 提供性能统计信息，如解析率、EPS等
 
 #### core/ 目录
 
@@ -74,17 +81,27 @@ bin/
 
 ```
 core/
-├── ast_visitor.rs      # AST（抽象语法树）访问器实现
-├── database_specific.rs # 数据库特定功能处理
-├── enhanced_parser.rs  # 增强的SQL解析器
-├── error.rs            # 错误定义和处理
-├── mod.rs              # 核心模块定义
-├── parser.rs           # SQL解析器实现
-├── piped_sql.rs        # Piped SQL处理
-├── sql_transpiler.rs   # SQL转译器
-├── types.rs            # 核心数据类型定义
-└── utils/              # 核心工具函数
+├── ast_visitor.rs               # AST（抽象语法树）访问器实现
+├── database_specific.rs         # 数据库特定功能处理
+├── enhanced_parser.rs           # 增强的SQL解析器（早期版本）
+├── enhanced_parser_improved_optimized.rs # 优化的增强解析器，提供关键字过滤功能
+├── error.rs                     # 错误定义和处理
+├── mod.rs                       # 核心模块定义
+├── parser.rs                    # SQL解析器实现
+├── piped_sql.rs                 # Piped SQL处理
+├── sql_transpiler.rs            # SQL转译器
+├── types.rs                     # 核心数据类型定义
+└── utils/                       # 核心工具函数
 ```
+
+**enhanced_parser_improved_optimized.rs** 是引擎的核心组件之一，主要功能：
+- 实现全面的SQL关键字过滤算法
+- 准确识别表名、列名、库名和模式名
+- 支持多语言标识符（包括中文）处理
+- 提供高性能的标识符验证功能
+- 通过多重过滤策略提高解析准确性
+
+该组件是解决SQL关键字错误识别问题的关键，性能测试显示可达到每秒处理39万条SQL语句的能力。
 
 #### examples/ 目录
 
@@ -198,14 +215,17 @@ cargo build --release
 ### 运行测试
 
 ```bash
-# 使用测试运行器
-cargo run --release --bin run_tests
+# 运行单元测试
+cargo test
 
-# 运行Excel测试用例
-cargo run --release --bin xlsx_test_runner tests/安恒词法解析（复杂查询）\ \(1\).xlsx
+# 运行集成测试
+cargo test --test integration_tests
 
-# 使用便捷脚本运行部分测试
-./run_first_few_tests.sh
+# 运行性能测试
+cargo test --test performance/eps_test
+
+# 使用Excel测试运行器
+cargo run --bin excel_sql_tester tests/安恒词法解析（复杂查询）\ \(1\).xlsx
 ```
 
 ### 运行示例
