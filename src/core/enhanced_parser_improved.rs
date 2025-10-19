@@ -135,12 +135,11 @@ impl EnhancedSqlParserImproved {
         }
     }
     
-    /// 从SQL中提取可能的表引用
+    /// 从SQL中提取可能的表引用（严格过滤版本）
     fn extract_possible_table_references(&self, sql: &str) -> Vec<String> {
         let mut tables = Vec::new();
         
         // 使用简单的启发式方法查找可能的表名
-        // 这是一个简化的实现，实际应用中可能需要更复杂的逻辑
         let words: Vec<&str> = sql.split_whitespace().collect();
         
         for (i, word) in words.iter().enumerate() {
@@ -149,13 +148,58 @@ impl EnhancedSqlParserImproved {
                          words[i-1].eq_ignore_ascii_case("JOIN") ||
                          words[i-1].eq_ignore_ascii_case("INTO")) {
                 let potential_table = Self::normalize_identifier(word);
-                if !Self::is_keyword(&potential_table) {
+                // 严格过滤：必须是有效的表名
+                if self.is_valid_table_name(&potential_table) {
                     tables.push(potential_table);
                 }
             }
         }
         
         tables
+    }
+    
+    /// 验证表名是否有效
+    fn is_valid_table_name(&self, name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+        
+        // 检查是否为SQL关键字（不区分大小写）
+        let name_upper = name.to_uppercase();
+        let sql_keywords = [
+            "SELECT", "FROM", "WHERE", "JOIN", "GROUP", "BY", "ORDER", "INSERT", 
+            "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "IN", "NOT", "BETWEEN", 
+            "LIKE", "EXISTS", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "ON", "AS", 
+            "HAVING", "DISTINCT", "ALL", "UNION", "INTERSECT", "EXCEPT", "LIMIT", 
+            "OFFSET", "FOR", "WHILE", "CASE", "WHEN", "THEN", "ELSE", "END", 
+            "AND", "OR", "IS", "NULL", "TRUE", "FALSE", "DEFAULT", "PRIMARY", "KEY",
+            "FOREIGN", "REFERENCES", "INDEX", "VIEW", "TABLE", "TRIGGER",
+            "PROCEDURE", "FUNCTION", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+            "SET", "WITH", "OVER", "PARTITION", "SEMI", "ANTI", "CROSS", "NATURAL",
+            "USING", "EXPLAIN", "ANALYZE", "TEMP", "TEMPORARY", "VALUES", "INTO",
+            "DISTRIBUTE", "SORT", "BUCKET", "CLUSTER", "STORED", "ORC", "PARQUET"
+        ];
+        
+        if sql_keywords.iter().any(|&kw| kw == name_upper) {
+            return false;
+        }
+        
+        // 检查是否为纯数字
+        if name.chars().all(|c| c.is_numeric()) {
+            return false;
+        }
+        
+        // 检查是否包含无效字符
+        if name.contains(['(', ')', ';', ',', '=', '<', '>', '&', '|', '!', '*', '/', '+', '-', '%', '^', '.']) {
+            return false;
+        }
+        
+        // 检查长度是否合理（1-64个字符）
+        if name.len() < 1 || name.len() > 64 {
+            return false;
+        }
+        
+        true
     }
     
     /// 从SQL中提取可能的列引用

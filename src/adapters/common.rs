@@ -434,7 +434,7 @@ impl CommonAdapter {
         true
     }
 
-    /// 从ObjectName提取表名信息
+    /// 从ObjectName提取表名信息（严格过滤版本）
     fn extract_table_name(
         &self,
         name: &ObjectName,
@@ -443,58 +443,41 @@ impl CommonAdapter {
         tables: &mut HashSet<String>,
         objects: &mut Vec<SqlObject>,
     ) {
-        // 清理所有标识符部分
-        let mut cleaned_parts: Vec<String> = Vec::new();
-        
-        for ident in &name.0 {
-            let cleaned = self.clean_identifier(&ident.value);
-            // 只保留有效的部分
-            if !cleaned.is_empty() && self.is_valid_identifier(&cleaned) {
-                cleaned_parts.push(cleaned);
-            }
-        }
-            
         let mut database = None;
         let mut schema = None;
         let mut table_name = String::new();
 
-        // 根据清理后的部分数量分配数据库、模式和表名
-        if cleaned_parts.len() == 1 {
-            table_name = cleaned_parts[0].clone();
-        } else if cleaned_parts.len() == 2 {
-            schema = Some(cleaned_parts[0].clone());
-            table_name = cleaned_parts[1].clone();
-        } else if cleaned_parts.len() >= 3 {
-            database = Some(cleaned_parts[0].clone());
-            schema = Some(cleaned_parts[1].clone());
-            table_name = cleaned_parts[2].clone();
+        // 解析表名并去除反引号
+        if name.0.len() == 1 {
+            table_name = name.0[0].value.clone().trim_matches('`').to_string();
+        } else if name.0.len() == 2 {
+            schema = Some(name.0[0].value.clone().trim_matches('`').to_string());
+            table_name = name.0[1].value.clone().trim_matches('`').to_string();
+        } else if name.0.len() >= 3 {
+            database = Some(name.0[0].value.clone().trim_matches('`').to_string());
+            schema = Some(name.0[1].value.clone().trim_matches('`').to_string());
+            table_name = name.0[2].value.clone().trim_matches('`').to_string();
         }
 
-        // 使用增强的is_valid_identifier方法严格过滤表名
-        if self.is_valid_identifier(&table_name) {
-            tables.insert(table_name.clone());
-
-            // 过滤schema名
-            if let Some(sch) = &schema {
-                if self.is_valid_identifier(sch) {
-                    schemas.insert(sch.clone());
-                } else {
-                    // 如果schema不是有效标识符，清空它以避免污染结果
-                    schema = None;
-                }
-            }
-
-            // 过滤数据库名
+        // 严格过滤：只接受有效的表名（非关键字、非纯数字、不含特殊字符）
+        if self.is_valid_table_name(&table_name) {
             if let Some(db) = &database {
                 if self.is_valid_identifier(db) {
                     databases.insert(db.clone());
                 } else {
-                    // 如果database不是有效标识符，清空它以避免污染结果
-                    database = None;
+                    database = None; // 无效的数据库名不添加
                 }
             }
+            if let Some(sch) = &schema {
+                if self.is_valid_identifier(sch) {
+                    schemas.insert(sch.clone());
+                } else {
+                    schema = None; // 无效的schema名不添加
+                }
+            }
+            
+            tables.insert(table_name.clone());
 
-            // 创建并添加SQL对象
             objects.push(SqlObject {
                 database: database.clone(),
                 schema: schema.clone(),
@@ -503,6 +486,87 @@ impl CommonAdapter {
                 alias: None,
             });
         }
+    }
+    
+    /// 验证表名是否有效（严格版本）
+    fn is_valid_table_name(&self, name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+        
+        // 检查是否为SQL关键字（不区分大小写）
+        let name_upper = name.to_uppercase();
+        let sql_keywords = [
+            "SELECT", "FROM", "WHERE", "JOIN", "GROUP", "BY", "ORDER", "INSERT", 
+            "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "IN", "NOT", "BETWEEN", 
+            "LIKE", "EXISTS", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "ON", "AS", 
+            "HAVING", "DISTINCT", "ALL", "UNION", "INTERSECT", "EXCEPT", "LIMIT", 
+            "OFFSET", "FOR", "WHILE", "CASE", "WHEN", "THEN", "ELSE", "END", 
+            "AND", "OR", "IS", "NULL", "TRUE", "FALSE", "DEFAULT", "PRIMARY", "KEY",
+            "FOREIGN", "REFERENCES", "INDEX", "VIEW", "TABLE", "TRIGGER",
+            "PROCEDURE", "FUNCTION", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+            "SET", "WITH", "OVER", "PARTITION", "SEMI", "ANTI", "CROSS", "NATURAL",
+            "USING", "EXPLAIN", "ANALYZE", "TEMP", "TEMPORARY", "VALUES", "INTO",
+            "DISTRIBUTE", "SORT", "BUCKET", "CLUSTER", "STORED", "ORC", "PARQUET"
+        ];
+        
+        if sql_keywords.iter().any(|&kw| kw == name_upper) {
+            return false;
+        }
+        
+        // 检查是否为纯数字
+        if name.chars().all(|c| c.is_numeric()) {
+            return false;
+        }
+        
+        // 检查是否包含无效字符
+        if name.contains(['(', ')', ';', ',', '=', '<', '>', '&', '|', '!', '*', '/', '+', '-', '%', '^', '.']) {
+            return false;
+        }
+        
+        // 检查长度是否合理（1-64个字符）
+        if name.len() < 1 || name.len() > 64 {
+            return false;
+        }
+        
+        // 检查是否为常见的列名模式（小写字母、下划线分隔）
+        if name.chars().all(|c| c.is_lowercase() || c == '_') && name.len() <= 30 {
+            return false;
+        }
+        
+        // 检查是否为中文（中文字符通常不是表名）
+        if name.chars().any(|c| c >= '\u{4e00}' && c <= '\u{9fff}') {
+            return false;
+        }
+        
+        // 检查是否为常见的列名（更严格的过滤）
+        let common_column_names = [
+            "GENDER", "FIRST_NAME", "LAST_NAME", "CLS_ID", "ID", "NAME", "AGE", "SALARY",
+            "ADDRESS", "CITY", "STATE", "ZIP", "PHONE", "EMAIL", "USERNAME", "PASSWORD",
+            "DESCRIPTION", "COMMENT", "NOTE", "TITLE", "CAPTION", "LABEL", "TAG",
+            "VALUE", "AMOUNT", "PRICE", "COST", "FEE", "RATE", "PERCENT", "QUANTITY",
+            "COUNT", "SUM", "AVG", "MIN", "MAX", "TOTAL", "AVERAGE", "NUMBER",
+            "DATE", "TIME", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
+            "STATUS", "TYPE", "CATEGORY", "CLASS", "GROUP", "LEVEL", "RANK", "SCORE",
+            "WEIGHT", "HEIGHT", "WIDTH", "LENGTH", "SIZE", "VOLUME", "AREA", "DISTANCE",
+            "SPEED", "TEMPERATURE", "PRESSURE", "DENSITY", "MASS", "FORCE", "ENERGY",
+            "POWER", "VOLTAGE", "CURRENT", "RESISTANCE", "CAPACITANCE", "INDUCTANCE",
+            "FREQUENCY", "WAVELENGTH", "AMPLITUDE", "PHASE", "ANGLE", "RADIUS",
+            "DIAMETER", "CIRCUMFERENCE", "PERIMETER", "AREA", "SURFACE", "VOLUME",
+            "COL1", "COL2", "COL3", "COL4", "COL5", "COL6", "COL7", "COL8", "COL9", "COL10",
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+        ];
+        
+        if common_column_names.iter().any(|&col| col == name_upper) {
+            return false;
+        }
+        
+        // 检查是否为单字符（通常是列别名）
+        if name.len() == 1 && name.chars().all(|c| c.is_ascii_alphabetic()) {
+            return false;
+        }
+        
+        true
     }
     
     /// 清理标识符，移除特殊字符和无效部分

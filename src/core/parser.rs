@@ -395,31 +395,21 @@ impl SqlParser {
         schemas: &mut HashSet<String>,
         tables: &mut HashSet<String>,
         columns: &mut HashSet<String>,
-        objects: &mut Vec<SqlObject>,
-        operation_type: &mut OperationType,
+        _objects: &mut Vec<SqlObject>,
+        _operation_type: &mut OperationType,
     ) {
         // 使用新的ObjectExtractor来提取对象信息
-        let mut extractor = ObjectExtractor::new(
-            databases, 
-            schemas, 
-            tables, 
-            columns, 
-            objects, 
-            operation_type
-        );
+        let mut extractor = ObjectExtractor::new();
         
         // 调用访问者模式的visit_statement方法
         extractor.visit_statement(statement);
         
         // 将提取的结果提交回原有的集合
-        extractor.commit(
-            databases, 
-            schemas, 
-            tables, 
-            columns, 
-            objects, 
-            operation_type
-        );
+        let (extracted_dbs, extracted_schemas, extracted_tbls, extracted_cols) = extractor.commit();
+        databases.extend(extracted_dbs);
+        schemas.extend(extracted_schemas);
+        tables.extend(extracted_tbls);
+        columns.extend(extracted_cols);
     }
 
     // 注意：原来的extract_from_query, extract_table_name等方法已经被ObjectExtractor替代

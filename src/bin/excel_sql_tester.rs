@@ -18,8 +18,8 @@ fn main() {
     
     // 获取Excel文件路径
     let excel_files = vec![
-        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx",
-        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/sqlop/tests/DSP解析与策略能力列表 (1).xlsx"
+        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx",
+        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/DSP解析与策略能力列表 (1).xlsx"
     ];
     
     // 处理每个Excel文件
@@ -160,9 +160,10 @@ fn process_excel_file(
                                                                 success_count += 1;
                                                                 parsed = true;
                                                                  
-                                                                // Extract and store parsed information
+                                                                // Extract and store parsed information with index
                                                                 parsed_info = format!(
-                                                                    "DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                    "[SQL {}] DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                    success_count,
                                                                     result.databases,
                                                                     result.schemas,
                                                                     result.tables,
@@ -201,9 +202,10 @@ fn process_excel_file(
                                                                     success_count += 1;
                                                                     parsed = true;
                                                                     
-                                                                    // Extract and store parsed information
+                                                                    // Extract and store parsed information with index
                                                                     parsed_info = format!(
-                                                                        "DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                        "[SQL {}] DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                        success_count,
                                                                         result.databases,
                                                                         result.schemas,
                                                                         result.tables,
