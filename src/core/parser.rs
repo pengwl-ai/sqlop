@@ -320,7 +320,7 @@ impl SqlParser {
             columns.clear();
             
             // 使用已经预先保存的dialect_name
-            let improved_parser = EnhancedSqlParserImproved::new(Some(dialect_name));
+            let mut improved_parser = EnhancedSqlParserImproved::new(Some(dialect_name));
             
             if improved_parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns) {
                     // 构建解析结果

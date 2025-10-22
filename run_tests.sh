@@ -19,9 +19,12 @@ fi
 
 # 运行测试程序，使用引号包围文件路径以处理空格和特殊字符
 echo "正在编译并运行测试..."
+# cargo run --jobs 2 --bin excel_sql_tester \
+#   "tests/安恒词法解析（复杂查询） (1).xlsx" \
+#   "tests/DSP解析与策略能力列表 (1).xlsx"
+
 cargo run --jobs 2 --bin excel_sql_tester \
-  "/Volumes/Macintosh HD/Users/zhushuai/rust/src/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx" \
-  "/Volumes/Macintosh HD/Users/zhushuai/rust/src/sqlop/tests/DSP解析与策略能力列表 (1).xlsx"
+  "tests/sql_parse_test_set(1).xlsx"
 
 # 检查执行结果
 if [ $? -eq 0 ]; then

@@ -1,10 +1,9 @@
 // SQL抽象语法树访问者模式实现
 // 参考JSQLParser的访问者模式设计，为sqlop提供更强大的AST处理能力
 
-use sqlparser::ast::{Statement, Select, SetExpr, TableFactor, JoinOperator, Expr, SelectItem, ObjectName, JoinConstraint, GroupByExpr, Ident};
-use std::collections::{HashSet, VecDeque, HashMap};
+use sqlparser::ast::{Statement, Select, SetExpr, Expr, SelectItem, ObjectName};
+use std::collections::HashSet;
 use crate::core::types::{OperationType, SqlObject};
-use std::fmt::Display;
 
 /// SQL AST访问者接口
 pub trait SqlAstVisitor {

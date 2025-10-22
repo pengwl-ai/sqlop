@@ -18,8 +18,9 @@ fn main() {
     
     // 获取Excel文件路径
     let excel_files = vec![
-        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx",
-        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/DSP解析与策略能力列表 (1).xlsx"
+        // "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx",
+        // "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/DSP解析与策略能力列表 (1).xlsx",
+        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/sql_parse_test_set(1).xlsx"
     ];
     
     // 处理每个Excel文件
@@ -103,20 +104,24 @@ fn process_excel_file(
                 
                 match workbook.worksheet_range(&sheet_name) {
                     Some(Ok(range)) => {
-                        // 精准读取指定列的SQL语句
-                        let sql_columns = if file_path.contains("安恒词法解析") {
+                        // 精准读取指定列的SQL语句和期望结果
+                        let (sql_columns, expect_result_columns) = if file_path.contains("安恒词法解析") {
                             // 安恒词法解析文件：C列是SQL（索引为2）
-                            vec![2]
+                            (vec![2], vec![])
                         } else if file_path.contains("DSP解析与策略能力列表") {
                             // DSP解析与策略能力列表文件：D列是SQL（索引为3）
-                            vec![3]
+                            (vec![3], vec![])
+                        } else if file_path.contains("sql_parse_test_set") {
+                            // sql_parse_test_set文件：D列是SQL（索引为3），I列是期望结果（索引为8）
+                            (vec![3], vec![8])
                         } else {
                             // 其他文件使用自动检测
-                            find_all_sql_columns(&range)
+                            let sql_cols = find_all_sql_columns(&range);
+                            (sql_cols, vec![])
                         };
                         
                         if !sql_columns.is_empty() {
-                            let columns_info = format!("Found {} SQL columns: {:?}", sql_columns.len(), sql_columns);
+                            let columns_info = format!("Found {} SQL columns: {:?}, Expect result columns: {:?}", sql_columns.len(), sql_columns, expect_result_columns);
                             println!("{}", columns_info);
                             output.push_str(&columns_info);
                             output.push_str("\n");
@@ -132,8 +137,44 @@ fn process_excel_file(
                                                 if !trimmed_sql.is_empty() {
                                                     total_count += 1;
                                                     
-                                                    // Extended database type attempt range
-                                                    let mut database_types = get_database_types_for_sheet(&sheet_name);
+                                                    // 读取期望结果（I列，索引8）
+                                                    let expect_result = if !expect_result_columns.is_empty() {
+                                                        let mut result = String::new();
+                                                        for &expect_col_idx in &expect_result_columns {
+                                                            if let Some(expect_cell) = row.get(expect_col_idx) {
+                                                                match expect_cell {
+                                                                    DataType::String(expect_str) => {
+                                                                        result.push_str(expect_str.trim());
+                                                                    },
+                                                                    _ => {}
+                                                                }
+                                                            }
+                                                        }
+                                                        result
+                                                    } else {
+                                                        String::new()
+                                                    };
+                                                    
+                                                    // 从A列（索引0）读取数据库类型
+                                                    let mut database_types = Vec::new();
+                                                    
+                                                    // 尝试从A列获取数据库类型
+                                                    if let Some(db_type_cell) = row.get(0) { // A列索引为0
+                                                        match db_type_cell {
+                                                            DataType::String(db_type_str) if !db_type_str.trim().is_empty() => {
+                                                                if let Some(db_type) = parse_database_type(db_type_str) {
+                                                                    database_types.push(db_type);
+                                                                }
+                                                            },
+                                                            _ => {}
+                                                        }
+                                                    }
+                                                    
+                                                    // 如果A列没有有效的数据库类型，则从工作表名称推断
+                                                    if database_types.is_empty() {
+                                                        database_types = get_database_types_for_sheet(&sheet_name);
+                                                    }
+                                                    
                                                     // If specific types fail, try all supported database types
                                                     let all_db_types = vec![
                                                         DatabaseType::MySQL,
@@ -151,35 +192,55 @@ fn process_excel_file(
                                                     ];
                                                     
                                                     let mut parsed = false;
-                                                    let mut parsed_info = String::new();
+                                                    let parsed_info = String::new();
                                                     
-                                                    // First try database types inferred from sheet name
+                                                    // First try database types from A column or inferred from sheet name
                                                     for db_type in &database_types {
                                                         match engine.parse_sql(trimmed_sql, db_type.clone()) {
                                                             Ok(result) => {
                                                                 success_count += 1;
                                                                 parsed = true;
                                                                  
-                                                                // Extract and store parsed information with index
-                                                                parsed_info = format!(
-                                                                    "[SQL {}] DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                // Add parsed information to output with complete SQL, each on a new line with db_type marked
+                                                                output.push_str(&format!("{}\n", trimmed_sql));
+                                                                output.push_str(&format!("db_type: {:?}\n", db_type));
+                                                                 
+                                                                // Add the old format for reference
+                                                                let old_format = format!(
+                                                                    "[SQL {}] DB: {{}}, Schema: {:?}, Tables: {:?}, Columns: {:?}\n",
                                                                     success_count,
-                                                                    result.databases,
                                                                     result.schemas,
                                                                     result.tables,
                                                                     result.columns
                                                                 );
-                                                                
-                                                                // Add parsed information to output with complete SQL, each on a new line with db_type marked
-                                                                output.push_str(&format!("{}\n", trimmed_sql));
-                                                                output.push_str(&format!("db_type: {:?}\n", db_type));
-                                                                output.push_str(&format!("{}\n", parsed_info));
-                                                                                                                              // Update database type statistics
+                                                                output.push_str(&old_format);
+                                                                 
+                                                                // Generate JSON format output with arrays and filtered tables/columns
+                                                                let databases_vec: Vec<String> = result.databases.into_iter().collect();
+                                                                let schemas_vec: Vec<String> = result.schemas.into_iter().collect();
+                                                                let tables_vec: Vec<String> = result.tables.into_iter().collect();
+                                                                let columns_vec: Vec<String> = result.columns.into_iter().collect();
+                                                                 
+                                                                let json_output = format!(
+                                                                    "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?}\n    }}\n```",
+                                                                    databases_vec,
+                                                                    schemas_vec,
+                                                                    tables_vec,
+                                                                    columns_vec
+                                                                );
+                                                                output.push_str(&json_output);
+
+                                                                let expect_json_output = format!(
+                                                                    "expect_result: {:?}\n", expect_result
+                                                                );
+                                                                output.push_str(&expect_json_output);
+
+                                                                // Update database type statistics
                                                                 let db_type_str = format!("{:?}", db_type);
                                                                 let entry = per_database_stats.entry(db_type_str.clone()).or_insert((0, 0));
                                                                 entry.0 += 1;
                                                                 entry.1 += 1;
-                                                                
+                                                                 
                                                                 break;
                                                             },
                                                             Err(_) => {
@@ -201,28 +262,43 @@ fn process_excel_file(
                                                                 Ok(result) => {
                                                                     success_count += 1;
                                                                     parsed = true;
-                                                                    
-                                                                    // Extract and store parsed information with index
-                                                                    parsed_info = format!(
-                                                                        "[SQL {}] DB: {:?}, Schema: {:?}, Tables: {:?}, Columns: {:?}",
+                                                                     
+                                                                    // Add parsed information to output with complete SQL, each on a new line with db_type marked
+                                                                    output.push_str(&format!("{}\n", trimmed_sql));
+                                                                    output.push_str(&format!("db_type: {:?}\n", db_type));
+                                                                     
+                                                                    // Add the old format for reference
+                                                                    let old_format = format!(
+                                                                        "[SQL {}] DB: {{}}, Schema: {:?}, Tables: {:?}, Columns: {:?}\n",
                                                                         success_count,
-                                                                        result.databases,
                                                                         result.schemas,
                                                                         result.tables,
                                                                         result.columns
                                                                     );
-                                                                    
-                                                                    // Add parsed information to output with complete SQL, each on a new line with db_type marked
-                                                                    output.push_str(&format!("{}\n", trimmed_sql));
-                                                                    output.push_str(&format!("db_type: {:?}\n", db_type));
-                                                                    output.push_str(&format!("{}\n", parsed_info));
-                                                                    
+                                                                    output.push_str(&old_format);
+                                                                     
+                                                                    // Generate JSON format output with arrays and filtered tables/columns
+                                                                    let databases_vec: Vec<String> = result.databases.into_iter().collect();
+                                                                    let schemas_vec: Vec<String> = result.schemas.into_iter().collect();
+                                                                    let tables_vec: Vec<String> = result.tables.into_iter().collect();
+                                                                    let columns_vec: Vec<String> = result.columns.into_iter().collect();
+                                                                     
+                                                                    let json_output = format!(
+                                                                        "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?},\n    \"expect_result\": \"{}\"\n}}\n```",
+                                                                        databases_vec,
+                                                                        schemas_vec,
+                                                                        tables_vec,
+                                                                        columns_vec,
+                                                                        expect_result
+                                                                    );
+                                                                    output.push_str(&json_output);
+                                                                     
                                                                     // Update database type statistics
                                                                     let db_type_str = format!("{:?}", db_type);
                                                                     let entry = per_database_stats.entry(db_type_str.clone()).or_insert((0, 0));
                                                                     entry.0 += 1;
                                                                     entry.1 += 1;
-                                                                    
+                                                                     
                                                                     break;
                                                                 },
                                                                 Err(_) => {
@@ -472,6 +548,27 @@ fn get_database_types_for_sheet(sheet_name: &str) -> Vec<DatabaseType> {
     }
     
     result
+}
+
+// 从字符串解析数据库类型
+fn parse_database_type(type_str: &str) -> Option<DatabaseType> {
+    let type_lower = type_str.trim().to_lowercase();
+    
+    match type_lower.as_str() {
+        "mysql" | "maria" => Some(DatabaseType::MySQL),
+        "postgresql" | "postgres" | "pg" => Some(DatabaseType::PostgreSQL),
+        "oracle" => Some(DatabaseType::Oracle),
+        "sqlserver" | "mssql" | "t-sql" => Some(DatabaseType::SQLServer),
+        "hive" => Some(DatabaseType::Hive),
+        "gaussdb" | "gauss" => Some(DatabaseType::GaussDB),
+        "kingbase" => Some(DatabaseType::Kingbase),
+        "db2" => Some(DatabaseType::DB2),
+        "dameng" | "dm" => Some(DatabaseType::Dameng),
+        "sybase" => Some(DatabaseType::Sybase),
+        "highgo" => Some(DatabaseType::Highgo),
+        "greenplum" => Some(DatabaseType::Greenplum),
+        _ => None
+    }
 }
 
 fn run_performance_test(engine: &mut SqlopEngine) -> String {

@@ -572,7 +572,7 @@ impl CommonAdapter {
     /// 清理标识符，移除特殊字符和无效部分
     fn clean_identifier(&self, identifier: &str) -> String {
         // 移除括号、引号和特殊字符
-        let mut cleaned = identifier
+        let cleaned = identifier
             .replace(['(', ')', '\'', '"', '`'], "")
             .trim()
             .to_string();

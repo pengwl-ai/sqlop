@@ -5,24 +5,41 @@ use regex::Regex;
 pub struct EnhancedSqlParserImproved {
     // 数据库方言特定处理
     dialect: Option<String>,
+    // 跟踪已识别的表名，避免重复和混淆
+    identified_tables: HashSet<String>,
 }
 
 impl EnhancedSqlParserImproved {
     pub fn new(dialect: Option<String>) -> Self {
         Self {
-            dialect
+            dialect,
+            identified_tables: HashSet::new(),
         }
+    }
+    
+    /// 重置内部状态
+    fn reset_state(&mut self) {
+        self.identified_tables.clear();
     }
 
     /// 解析SQL并提取对象信息
     pub fn parse_sql(
-        &self, 
+        &mut self, 
         _sql: &str, 
         databases: &mut HashSet<String>,
         schemas: &mut HashSet<String>,
         tables: &mut HashSet<String>,
         columns: &mut HashSet<String>,
     ) -> bool {
+        // 重置状态
+        self.reset_state();
+        
+        // 清空结果集合，确保每次解析都是独立的
+        databases.clear();
+        schemas.clear();
+        tables.clear();
+        columns.clear();
+        
         // 预处理SQL以提高解析成功率
         let processed_sql = self.preprocess_sql(_sql);
         
@@ -32,8 +49,6 @@ impl EnhancedSqlParserImproved {
         }
         
         // 多阶段解析策略
-        // 1. 尝试标准解析（如果有完整实现）
-        // 2. 尝试增强版解析
         let success = self.enhanced_extract_objects(&processed_sql, databases, schemas, tables, columns);
         
         // 如果是ClickHouse方言，进行特定处理
@@ -69,7 +84,7 @@ impl EnhancedSqlParserImproved {
 
     /// 增强版对象提取，解决现有解析器的问题
     fn enhanced_extract_objects(
-        &self,
+        &mut self,
         sql: &str,
         databases: &mut HashSet<String>,
         schemas: &mut HashSet<String>,
@@ -86,6 +101,9 @@ impl EnhancedSqlParserImproved {
         
         // 提取表名（增强版，支持各种语句类型）
         self.extract_tables_enhanced(&sql_lower, sql, databases, schemas, tables);
+        
+        // 将识别的表名同步到identified_tables集合
+        self.identified_tables.extend(tables.iter().cloned());
         
         // 提取列名（增强版，支持更多SQL结构）
         self.extract_columns_enhanced(&sql_lower, sql, columns);
@@ -110,6 +128,114 @@ impl EnhancedSqlParserImproved {
         
         // 特殊处理GaussDB语法
         self.handle_gaussdb_specific(&sql_lower, sql, tables, columns);
+        
+        // 清理和优化结果集合
+        
+        // 特殊处理SELECT *语句
+        if sql_lower.contains("select *") || sql_lower.contains("select*") {
+            columns.clear();
+            columns.insert("*".to_string());
+        }
+        
+        // 1. 清空schema集合（对于MySQL）
+        if let Some(ref dialect) = self.dialect {
+            if dialect.to_lowercase() == "mysql" {
+                schemas.clear();
+            } else {
+                // 对于其他方言，从schema集合中移除表名和非schema特征的标识符
+                let tables_clone = tables.clone();
+                schemas.retain(|s| !tables_clone.contains(s) && Self::is_likely_schema_name(s));
+            }
+        }
+        
+        // 2. 更严格地过滤表名 - 只保留FROM/JOIN子句中明确指定的表
+        let mut valid_tables = HashSet::new();
+        // 匹配FROM子句中的表
+        let from_regex = Regex::new(r#"(?i)\bFROM\s+(?:`([^`]+)`|"([^"]+)"|\[([^\]]+)\]|([a-zA-Z0-9_\u4e00-\u9fa5]+))(?:\s+|$|\bJOIN\b|\bWHERE\b|\bGROUP\b|\bORDER\b|\bLIMIT\b)"#).unwrap();
+        for captures in from_regex.captures_iter(sql) {
+            for i in 1..=4 {
+                if let Some(m) = captures.get(i) {
+                    let table_name = Self::normalize_identifier(m.as_str());
+                    if !Self::is_keyword(&table_name) {
+                        valid_tables.insert(table_name);
+                        break;
+                    }
+                }
+            }
+        }
+        // 匹配JOIN子句中的表
+        let join_regex = Regex::new(r#"(?i)\bJOIN\s+(?:`([^`]+)`|"([^"]+)"|\[([^\]]+)\]|([a-zA-Z0-9_\u4e00-\u9fa5]+))(?:\s+|$|\bON\b|\bWHERE\b|\bGROUP\b|\bORDER\b|\bLIMIT\b)"#).unwrap();
+        for captures in join_regex.captures_iter(sql) {
+            for i in 1..=4 {
+                if let Some(m) = captures.get(i) {
+                    let table_name = Self::normalize_identifier(m.as_str());
+                    if !Self::is_keyword(&table_name) {
+                        valid_tables.insert(table_name);
+                        break;
+                    }
+                }
+            }
+        }
+        // 用过滤后的表名替换原集合
+        *tables = valid_tables;
+        
+        // 3. 更严格地过滤列名
+        // 只保留SELECT子句中的列（不包括WHERE子句中的内容）
+        let mut valid_columns = HashSet::new();
+        // 尝试提取SELECT和FROM之间的内容作为列部分
+        if let Some(select_idx) = sql_lower.find("select") {
+            let after_select = &sql_lower[select_idx + 6..]; // 6是"select"的长度
+            if let Some(from_idx) = after_select.find("from") {
+                let columns_part = &after_select[..from_idx];
+                // 分割列部分（考虑逗号分隔）
+                let column_parts: Vec<&str> = columns_part.split(',').collect();
+                for part in column_parts {
+                    let trimmed = part.trim();
+                    if !trimmed.is_empty() {
+                        // 提取标识符（处理表别名.列名格式）
+                        let identifiers = Self::extract_identifiers_from_expression(trimmed);
+                        for ident in identifiers {
+                            let normalized = Self::normalize_identifier(&ident);
+                            if !Self::is_keyword(&normalized) && 
+                               !tables.contains(&normalized) &&
+                               !normalized.starts_with("'") &&
+                               !normalized.ends_with("'") &&
+                               !normalized.parse::<f64>().is_ok() {
+                                valid_columns.insert(normalized);
+                            }
+                        }
+                        // 如果包含*，添加*作为列
+                        if trimmed.contains("*") {
+                            valid_columns.insert("*".to_string());
+                        }
+                    }
+                }
+            }
+        }
+        // 只有当我们成功提取了列时才替换原集合
+        if !valid_columns.is_empty() {
+            *columns = valid_columns;
+        } else {
+            // 如果没有提取到任何列但有SELECT *，则只保留*
+            if sql_lower.contains("select *") || sql_lower.contains("select*") {
+                columns.clear();
+                columns.insert("*".to_string());
+            } else {
+                // 否则清理现有列集合
+                let tables_clone = tables.clone();
+                let schemas_clone = schemas.clone();
+                let tables_and_schemas: HashSet<String> = tables_clone.iter().chain(schemas_clone.iter()).cloned().collect();
+                columns.retain(|c| 
+                    !tables_and_schemas.contains(c) && 
+                    !Self::is_keyword(c) &&
+                    !c.starts_with("'") && 
+                    !c.ends_with("'") && 
+                    !c.starts_with('"') &&
+                    !c.ends_with('"') &&
+                    !c.parse::<f64>().is_ok()
+                );
+            }
+        }
         
         // 返回是否成功提取了至少一个对象
         !tables.is_empty() || !columns.is_empty() || !databases.is_empty() || !schemas.is_empty()
@@ -377,21 +503,53 @@ impl EnhancedSqlParserImproved {
     }
 
     /// 提取Schema信息
-    fn extract_schemas(&self, _sql_lower: &str, sql: &str, schemas: &mut HashSet<String>) {
-        // 从表名中提取Schema信息（database.schema.table或schema.table格式）
-        let schema_ref_regex = Regex::new(r#"(?:([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)"#).unwrap();
+    fn extract_schemas(&self, sql_lower: &str, sql: &str, schemas: &mut HashSet<String>) {
+        // 对于MySQL方言，默认不识别schema，除非明确指定了CREATE SCHEMA或USE SCHEMA
+        if let Some(ref dialect) = self.dialect {
+            if dialect.to_lowercase() == "mysql" {
+                // 只处理明确的CREATE SCHEMA或USE SCHEMA语句
+                let create_schema_regex = Regex::new(r#"(?i)\b(CREATE|USE)\s+SCHEMA\s+([a-zA-Z0-9_]+)"#).unwrap();
+                for captures in create_schema_regex.captures_iter(sql) {
+                    if let Some(schema_match) = captures.get(2) {
+                        let schema_name = schema_match.as_str();
+                        if !Self::is_keyword(schema_name) {
+                            schemas.insert(Self::normalize_identifier(schema_name));
+                        }
+                    }
+                }
+                return; // 对于MySQL，我们不进行其他schema识别
+            }
+        }
+        
+        // 对于其他方言，使用严格匹配database.schema.table格式
+        let schema_ref_regex = Regex::new(r#"(?:\bFROM\b|\bJOIN\b|\bUPDATE\b|\bINSERT\s+INTO\b)\s+(?:([a-zA-Z0-9_]+)\.)([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)"#).unwrap();
+        
         for captures in schema_ref_regex.captures_iter(sql) {
             if captures.len() >= 4 {
-                // 匹配到 database.schema.table 格式
+                // 只在FROM/JOIN/UPDATE/INSERT INTO子句中识别schema
                 let schema_candidate = captures.get(2).map(|m| m.as_str()).unwrap_or("");
-                if !schema_candidate.is_empty() && !Self::is_keyword(schema_candidate) {
+                // 进一步验证：schema名称通常较短且符合特定模式
+                if !schema_candidate.is_empty() && 
+                   !Self::is_keyword(schema_candidate) && 
+                   Self::is_likely_schema_name(schema_candidate) {
                     schemas.insert(Self::normalize_identifier(schema_candidate));
+                }
+            }
+        }
+        
+        // 处理CREATE SCHEMA或USE SCHEMA语句（非MySQL方言）
+        let create_schema_regex = Regex::new(r#"(?i)\b(CREATE|USE)\s+SCHEMA\s+([a-zA-Z0-9_]+)"#).unwrap();
+        for captures in create_schema_regex.captures_iter(sql) {
+            if let Some(schema_match) = captures.get(2) {
+                let schema_name = schema_match.as_str();
+                if !Self::is_keyword(schema_name) {
+                    schemas.insert(Self::normalize_identifier(schema_name));
                 }
             }
         }
     }
 
-    /// 增强版表名提取，支持更多SQL语句类型
+    /// 增强版表名提取，支持更多SQL语句类型，但避免将列名识别为表名
     fn extract_tables_enhanced(
         &self,
         sql_lower: &str,
@@ -433,6 +591,27 @@ impl EnhancedSqlParserImproved {
         }
     }
 
+    /// 判断一个标识符是否可能是schema名称
+    fn is_likely_schema_name(name: &str) -> bool {
+        // 常见的schema名称列表
+        let common_schemas = ["public", "dbo", "sys", "information_schema", "pg_catalog", "mysql", "performance_schema"];
+        
+        // 检查是否为常见schema名称
+        if common_schemas.contains(&name) {
+            return true;
+        }
+        
+        // 其他可能的schema命名特征
+        // 1. 长度通常较短
+        // 2. 不是以常见列名后缀结尾
+        name.len() < 15 && 
+        !name.ends_with("_id") && 
+        !name.ends_with("_name") && 
+        !name.ends_with("_type") && 
+        !name.ends_with("_date") &&
+        !name.ends_with("_time")
+    }
+    
     /// 从表名中提取数据库和schema信息
     fn extract_db_schema_from_table_name(
         &self,
@@ -446,32 +625,55 @@ impl EnhancedSqlParserImproved {
         match parts.len() {
             1 => {
                 // 只有表名
-                tables.insert(Self::normalize_identifier(table_name));
+                let normalized = Self::normalize_identifier(table_name);
+                // 添加关键字检查，避免将关键字识别为表名
+                if !Self::is_keyword(&normalized) && 
+                   // 过滤掉明显是列名的模式
+                   !normalized.ends_with("_id") && 
+                   !normalized.ends_with("_type") {
+                    tables.insert(normalized);
+                }
             },
             2 => {
                 // schema.table 或 database.table 格式
+                // 但在大多数SELECT语句中，这更可能是表别名.列名
+                // 因此我们要更谨慎地判断schema
                 let first_part = Self::normalize_identifier(parts[0]);
                 let table_part = Self::normalize_identifier(parts[1]);
                 
-                // 简单判断第一个部分是schema还是database
-                // 在没有更多信息的情况下，我们假设是schema
-                schemas.insert(first_part);
-                tables.insert(table_part);
+                // 只在确实是schema名称时才添加到schema集合
+                if Self::is_likely_schema_name(&first_part) {
+                    schemas.insert(first_part);
+                }
+                
+                // 对于第二部分，也进行一些基本验证
+                if !Self::is_keyword(&table_part) {
+                    tables.insert(table_part);
+                }
             },
             3 => {
-                // database.schema.table 格式
+                // database.schema.table 格式 - 这种格式通常更确定
                 let db_part = Self::normalize_identifier(parts[0]);
                 let schema_part = Self::normalize_identifier(parts[1]);
                 let table_part = Self::normalize_identifier(parts[2]);
                 
-                databases.insert(db_part);
-                schemas.insert(schema_part);
-                tables.insert(table_part);
+                if !Self::is_keyword(&db_part) {
+                    databases.insert(db_part);
+                }
+                if !Self::is_keyword(&schema_part) {
+                    schemas.insert(schema_part);
+                }
+                if !Self::is_keyword(&table_part) {
+                    tables.insert(table_part);
+                }
             },
             _ => {
                 // 多于3个部分，取最后一个作为表名
                 if let Some(table_part) = parts.last() {
-                    tables.insert(Self::normalize_identifier(table_part));
+                    let normalized = Self::normalize_identifier(table_part);
+                    if !Self::is_keyword(&normalized) {
+                        tables.insert(normalized);
+                    }
                 }
             }
         }
@@ -479,6 +681,9 @@ impl EnhancedSqlParserImproved {
 
     /// 增强版列名提取，支持更多SQL结构
     fn extract_columns_enhanced(&self, sql_lower: &str, sql: &str, columns: &mut HashSet<String>) {
+        // 首先移除SQL中的字符串字面量，避免将其识别为列名
+        let sql_no_literals = self.remove_string_literals(sql);
+        
         // 1. 处理SELECT子句中的列
         if let Some(select_start) = sql_lower.find("select") {
             let mut from_pos = None;
@@ -501,7 +706,7 @@ impl EnhancedSqlParserImproved {
                 .min();
             
             if let Some(end_pos) = end_pos {
-                let select_part = &sql[select_start + 6..end_pos];
+                let select_part = &sql_no_literals[select_start + 6..end_pos];
                 
                 // 分割列名
                 let column_parts = Self::split_sql_parts(select_part, ',');
@@ -509,7 +714,12 @@ impl EnhancedSqlParserImproved {
                 for part in column_parts {
                     let trimmed_part = part.trim();
                     // 跳过通配符
-                    if trimmed_part == "*" {
+                    if trimmed_part == "*" || trimmed_part.contains(".*") {
+                        continue;
+                    }
+                    
+                    // 跳过数字列索引
+                    if trimmed_part.chars().all(|c| c.is_digit(10)) {
                         continue;
                     }
                     
@@ -518,7 +728,12 @@ impl EnhancedSqlParserImproved {
                     
                     // 提取列名
                     let column_name = Self::extract_last_identifier(&column_part);
-                    if !column_name.is_empty() && !Self::is_keyword(&column_name) {
+                    
+                    // 过滤：不是表名、不是关键字、不是通配符、不为空
+                    if !column_name.is_empty() && 
+                       !Self::is_keyword(&column_name) && 
+                       !column_name.contains('*') && 
+                       !self.identified_tables.contains(&column_name) {
                         columns.insert(column_name);
                     }
                 }
@@ -527,26 +742,75 @@ impl EnhancedSqlParserImproved {
 
         // 2. 从WHERE子句中提取列名
         if let Some(where_start) = sql_lower.find(" where ") {
-            let where_part = &sql[where_start + 7..];
-            columns.extend(Self::extract_identifiers_from_expression(where_part));
+            let where_part = &sql_no_literals[where_start + 7..];
+            let identifiers = Self::extract_identifiers_from_expression(where_part);
+            for ident in identifiers {
+                // 过滤：不是表名、不是关键字、不是通配符、不为空
+                if !ident.is_empty() && 
+                   !Self::is_keyword(&ident) && 
+                   !ident.contains('*') && 
+                   !self.identified_tables.contains(&ident) {
+                    columns.insert(ident);
+                }
+            }
         }
 
         // 3. 从GROUP BY子句中提取列名
         if let Some(group_start) = sql_lower.find(" group by ") {
-            let group_part = &sql[group_start + 9..];
-            columns.extend(Self::extract_identifiers_from_expression(group_part));
+            let group_part = &sql_no_literals[group_start + 9..];
+            let parts = Self::split_sql_parts(group_part, ',');
+            
+            for part in parts {
+                let trimmed_part = part.trim();
+                
+                // 跳过数字列索引
+                if trimmed_part.chars().all(|c| c.is_digit(10)) {
+                    continue;
+                }
+                
+                // 提取最后一个标识符
+                let last_ident = Self::extract_last_identifier(trimmed_part);
+                
+                // 过滤
+                if !last_ident.is_empty() && 
+                   !Self::is_keyword(&last_ident) && 
+                   !last_ident.contains('*') && 
+                   !self.identified_tables.contains(&last_ident) {
+                    columns.insert(last_ident);
+                }
+            }
         }
 
         // 4. 从ORDER BY子句中提取列名
         if let Some(order_start) = sql_lower.find(" order by ") {
-            let order_part = &sql[order_start + 9..];
-            columns.extend(Self::extract_identifiers_from_expression(order_part));
+            let order_part = &sql_no_literals[order_start + 9..];
+            let parts = Self::split_sql_parts(order_part, ',');
+            
+            for part in parts {
+                let trimmed_part = part.trim();
+                
+                // 跳过数字列索引
+                if trimmed_part.chars().all(|c| c.is_digit(10)) {
+                    continue;
+                }
+                
+                // 提取最后一个标识符
+                let last_ident = Self::extract_last_identifier(trimmed_part);
+                
+                // 过滤
+                if !last_ident.is_empty() && 
+                   !Self::is_keyword(&last_ident) && 
+                   !last_ident.contains('*') && 
+                   !self.identified_tables.contains(&last_ident) {
+                    columns.insert(last_ident);
+                }
+            }
         }
     }
 
     /// 处理WITH语句
     fn handle_with_statements(
-        &self,
+        &mut self,
         sql_lower: &str,
         sql: &str,
         databases: &mut HashSet<String>,
@@ -590,7 +854,7 @@ impl EnhancedSqlParserImproved {
 
     /// 处理CREATE TABLE语句
     fn handle_create_table(
-        &self,
+        &mut self,
         sql_lower: &str,
         sql: &str,
         databases: &mut HashSet<String>,
@@ -653,7 +917,7 @@ impl EnhancedSqlParserImproved {
 
     /// 处理ALTER TABLE语句
     fn handle_alter_table(
-        &self,
+        &mut self,
         sql_lower: &str,
         sql: &str,
         databases: &mut HashSet<String>,
@@ -704,7 +968,7 @@ impl EnhancedSqlParserImproved {
 
     /// 处理INSERT语句
     fn handle_insert_statement(
-        &self,
+        &mut self,
         sql_lower: &str,
         sql: &str,
         databases: &mut HashSet<String>,
@@ -777,7 +1041,7 @@ impl EnhancedSqlParserImproved {
 
     /// 处理ClickHouse特定语法
     fn handle_clickhouse_specific(
-        &self,
+        &mut self,
         sql: &str,
         _databases: &mut HashSet<String>,
         _schemas: &mut HashSet<String>,
@@ -896,6 +1160,54 @@ impl EnhancedSqlParserImproved {
         }
         
         identifiers
+    }
+    
+    /// 移除SQL中的字符串字面量
+    fn remove_string_literals(&self, sql: &str) -> String {
+        let mut result = String::new();
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut escaped = false;
+        
+        for c in sql.chars() {
+            if escaped {
+                escaped = false;
+                if !in_single_quote && !in_double_quote {
+                    result.push(c);
+                }
+                continue;
+            }
+            
+            match c {
+                '\\' => {
+                    escaped = true;
+                    if !in_single_quote && !in_double_quote {
+                        result.push(c);
+                    }
+                },
+                '\'' => {
+                    if !in_double_quote {
+                        in_single_quote = !in_single_quote;
+                    } else {
+                        result.push(c);
+                    }
+                },
+                '"' => {
+                    if !in_single_quote {
+                        in_double_quote = !in_double_quote;
+                    } else {
+                        result.push(c);
+                    }
+                },
+                _ => {
+                    if !in_single_quote && !in_double_quote {
+                        result.push(c);
+                    }
+                }
+            }
+        }
+        
+        result
     }
 
     // 辅助方法：提取最后一个标识符
