@@ -5,6 +5,89 @@ use std::time::Instant;
 use calamine::{open_workbook, Xlsx, Range, DataType, Reader};
 use sqlop::core::types::DatabaseType;
 use sqlop::SqlopEngine;
+use serde_json::{Value, json};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+// 使用原子变量作为全局计数器
+static MATCHING_COUNT: AtomicUsize = AtomicUsize::new(0);
+static TOTAL_WITH_EXPECT_RESULT: AtomicUsize = AtomicUsize::new(0);
+
+// 定义用于比较的结构体
+#[derive(Debug, Clone)]
+struct ParseResult {
+    databases: Vec<String>,
+    schemas: Vec<String>,
+    tables: Vec<String>,
+    columns: Vec<String>,
+}
+
+impl ParseResult {
+    // 从JSON值创建
+    fn from_json(json_value: &Value) -> Option<Self> {
+        Some(ParseResult {
+            databases: json_value.get("databases").and_then(|v| v.as_array())?.iter()
+                .filter_map(|s| s.as_str().map(String::from)).collect(),
+            schemas: json_value.get("schemas").and_then(|v| v.as_array())?.iter()
+                .filter_map(|s| s.as_str().map(String::from)).collect(),
+            tables: json_value.get("tables").and_then(|v| v.as_array())?.iter()
+                .filter_map(|s| s.as_str().map(String::from)).collect(),
+            columns: json_value.get("columns").and_then(|v| v.as_array())?.iter()
+                .filter_map(|s| s.as_str().map(String::from)).collect(),
+        })
+    }
+    
+    // 比较两个结果是否相等（忽略数组顺序）
+    fn equals_ignore_order(&self, other: &Self) -> bool {
+        let mut self_tables_sorted = self.tables.clone();
+        let mut other_tables_sorted = other.tables.clone();
+        let mut self_columns_sorted = self.columns.clone();
+        let mut other_columns_sorted = other.columns.clone();
+        let mut self_databases_sorted = self.databases.clone();
+        let mut other_databases_sorted = other.databases.clone();
+        let mut self_schemas_sorted = self.schemas.clone();
+        let mut other_schemas_sorted = other.schemas.clone();
+        
+        self_tables_sorted.sort();
+        other_tables_sorted.sort();
+        self_columns_sorted.sort();
+        other_columns_sorted.sort();
+        self_databases_sorted.sort();
+        other_databases_sorted.sort();
+        self_schemas_sorted.sort();
+        other_schemas_sorted.sort();
+        
+        self_tables_sorted == other_tables_sorted && 
+        self_columns_sorted == other_columns_sorted &&
+        self_databases_sorted == other_databases_sorted &&
+        self_schemas_sorted == other_schemas_sorted
+    }
+}
+
+// 比较结果函数，返回比较状态
+fn compare_and_format_results(result_json: &Value, expect_result: &str) -> (String, bool) {
+    if expect_result.is_empty() {
+        return (String::new(), false);
+    }
+    
+    let mut output = String::new();
+    let mut is_match = false;
+    
+    if let Ok(expect_json) = serde_json::from_str::<Value>(expect_result) {
+        if let (Some(result_data), Some(expect_data)) = (
+            ParseResult::from_json(result_json),
+            ParseResult::from_json(&expect_json)
+        ) {
+            is_match = result_data.equals_ignore_order(&expect_data);
+            if is_match {
+                output.push_str("✅ RESULT MATCHES EXPECTATION\n");
+            } else {
+                output.push_str("❌ RESULT DOES NOT MATCH EXPECTATION\n");
+            }
+        }
+    }
+    
+    (output, is_match)
+}
 
 fn main() {
     // 初始化SQL解析引擎
@@ -66,6 +149,18 @@ fn main() {
         result_output.push_str("\n=== Performance Test ===\n");
         result_output.push_str(&performance_info);
     }
+    
+    // 添加匹配统计信息
+      let matching_stats = format!("\n=== 匹配统计 ===\n");
+      let matching_count = MATCHING_COUNT.load(Ordering::SeqCst);
+      let total_with_expect_result = TOTAL_WITH_EXPECT_RESULT.load(Ordering::SeqCst);
+      let matching_result = format!("Result matches expectation: {}/{} ({:.1}%)\n", 
+                                 matching_count, total_with_expect_result, 
+                                 if total_with_expect_result > 0 { (matching_count as f64 * 100.0) / total_with_expect_result as f64 } else { 0.0 });
+    
+    println!("{}{}", matching_stats, matching_result);
+    result_output.push_str(&matching_stats);
+    result_output.push_str(&matching_result);
     
     // 写入结果到文件
     match File::create("result.txt") {
@@ -221,19 +316,36 @@ fn process_excel_file(
                                                                 let tables_vec: Vec<String> = result.tables.into_iter().collect();
                                                                 let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                  
-                                                                let json_output = format!(
-                                                                    "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?}\n    }}\n```",
-                                                                    databases_vec,
-                                                                    schemas_vec,
-                                                                    tables_vec,
-                                                                    columns_vec
-                                                                );
-                                                                output.push_str(&json_output);
+                                                                // 创建JSON格式用于比较
+                                                                 let result_json = json!({ 
+                                                                     "databases": databases_vec, 
+                                                                     "schemas": schemas_vec, 
+                                                                     "tables": tables_vec, 
+                                                                     "columns": columns_vec 
+                                                                 });
+                                                                 
+                                                                  let json_output = format!(
+                                                                      "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?}\n}}\n```\n",
+                                                                      databases_vec,
+                                                                      schemas_vec,
+                                                                      tables_vec,
+                                                                      columns_vec
+                                                                  );
+                                                                  output.push_str(&json_output);
 
-                                                                let expect_json_output = format!(
-                                                                    "expect_result: {:?}\n", expect_result
-                                                                );
-                                                                output.push_str(&expect_json_output);
+                                                                  // 保持expect_result为非格式化状态
+                                                                  let expect_output = format!("expect_result: {}\n", expect_result);
+                                                                  output.push_str(&expect_output);
+                                                                   
+                                                                  // 比较result和expect_result并更新计数
+                                                                         if !expect_result.is_empty() {
+                                                                             TOTAL_WITH_EXPECT_RESULT.fetch_add(1, Ordering::SeqCst);
+                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result);
+                                                                             if is_match {
+                                                                                 MATCHING_COUNT.fetch_add(1, Ordering::SeqCst);
+                                                                             }
+                                                                             output.push_str(&comparison_output);
+                                                                         }
 
                                                                 // Update database type statistics
                                                                 let db_type_str = format!("{:?}", db_type);
@@ -283,15 +395,36 @@ fn process_excel_file(
                                                                     let tables_vec: Vec<String> = result.tables.into_iter().collect();
                                                                     let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                      
-                                                                    let json_output = format!(
-                                                                        "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?},\n    \"expect_result\": \"{}\"\n}}\n```",
-                                                                        databases_vec,
-                                                                        schemas_vec,
-                                                                        tables_vec,
-                                                                        columns_vec,
-                                                                        expect_result
-                                                                    );
-                                                                    output.push_str(&json_output);
+                                                                    // 创建JSON格式用于比较
+                                                                     let result_json = json!({ 
+                                                                         "databases": databases_vec, 
+                                                                         "schemas": schemas_vec, 
+                                                                         "tables": tables_vec, 
+                                                                         "columns": columns_vec 
+                                                                     });
+                                                                     
+                                                                      let json_output = format!(
+                                                                          "result``json\n{{\n    \"databases\": {:?},\n    \"schemas\": {:?},\n    \"tables\": {:?},\n    \"columns\": {:?}\n}}\n```\n",
+                                                                          databases_vec,
+                                                                          schemas_vec,
+                                                                          tables_vec,
+                                                                          columns_vec
+                                                                      );
+                                                                      output.push_str(&json_output);
+                                                                      
+                                                                      // 保持expect_result为非格式化状态
+                                                                      let expect_output = format!("expect_result: {}\n", expect_result);
+                                                                      output.push_str(&expect_output);
+                                                                       
+                                                                      // 比较result和expect_result并更新计数
+                                                                         if !expect_result.is_empty() {
+                                                                             TOTAL_WITH_EXPECT_RESULT.fetch_add(1, Ordering::SeqCst);
+                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result);
+                                                                             if is_match {
+                                                                                 MATCHING_COUNT.fetch_add(1, Ordering::SeqCst);
+                                                                             }
+                                                                             output.push_str(&comparison_output);
+                                                                         }
                                                                      
                                                                     // Update database type statistics
                                                                     let db_type_str = format!("{:?}", db_type);

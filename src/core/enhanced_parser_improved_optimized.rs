@@ -44,6 +44,18 @@ lazy_static! {
     static ref IDENTIFIER_RE: Regex = Regex::new(r#"(?:`([^`]+)`|"([^"]+)"|\[([^\]]+)\]|\b([a-zA-Z0-9_]+)\b)"#).unwrap();
     // 表引用提取正则表达式（增强版）
     static ref TABLE_REFERENCE_RE: Regex = Regex::new(r#"(?:(?:FROM|JOIN|INTO|UPDATE)\s+(?:`([^`]+)`|"([^"]+)"|\[([^\]]+)\]|\b([a-zA-Z0-9_.]+)\b))"#).unwrap();
+    // SQL子句模式匹配
+    static ref SQL_CLAUSE_PATTERN: Regex = Regex::new(r"(?i)\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|JOIN|GROUP|ORDER|HAVING|LIMIT|OFFSET|TOP|DISTINCT)\b").unwrap();
+    // SQL关键字模式匹配
+    static ref SQL_KEYWORD_PATTERN: Regex = Regex::new(r"(?i)\b(WITH|WHERE|BY|GROUP|ORDER|FROM|JOIN|EXISTS|INNER|LEFT|RIGHT)\b").unwrap();
+    // Schema模式匹配
+    static ref SCHEMA_PATTERN: Regex = Regex::new(r"(?i)\b(public|private|internal|external|default|sys|system|temp|tempdb|information_schema)\b").unwrap();
+    // 标识符模式匹配
+    static ref IDENTIFIER_PATTERN: Regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap();
+    // 列名后缀模式匹配
+    static ref COLUMN_SUFFIX_PATTERN: Regex = Regex::new(r"(?i)_(id|name|code|type|date|time|value|count|flag)$").unwrap();
+    // 表名后缀模式匹配
+    static ref TABLE_SUFFIX_PATTERN: Regex = Regex::new(r"(?i)s$|_table$|_data$|_info$").unwrap();
     // 常见的schema名称列表
     static ref COMMON_SCHEMA_NAMES: HashSet<&'static str> = {
         let mut set = HashSet::new();
@@ -235,7 +247,7 @@ impl EnhancedSqlParserImprovedOptimized {
         // 处理子查询（递归解析）
         self.handle_subqueries(&preprocessed_sql, databases, schemas, tables, columns);
         
-        // 清理和优化结果
+        // 清理最终解析结果
         self.cleanup_result(databases, schemas, tables, columns);
         
         true
@@ -677,334 +689,151 @@ impl EnhancedSqlParserImprovedOptimized {
                         self.parse_sql(cte_body, databases, schemas, tables, columns);
                     }
                 }
-            }
-        }
+            }}
     }
+
     fn cleanup_result(&self, databases: &mut HashSet<String>, schemas: &mut HashSet<String>, tables: &mut HashSet<String>, columns: &mut HashSet<String>) {
-        // 定义过滤标识符的通用函数
-        let filter_identifier = |id: &String| -> bool {
-            let trimmed = id.trim();
-            // 1. 移除前后空白字符并检查
-            if trimmed.is_empty() || trimmed.len() <= 1 {
-                return false;
-            }
-            
-            // 2. 检查是否只包含特殊字符或无效字符
-            if !trimmed.chars().any(|c| c.is_alphanumeric() || c == '_' || c == '-' || 
-               (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) {
-                return false;
-            }
-            
-            // 3. 检查是否为SQL关键字
-            if EnhancedSqlParserImprovedOptimized::is_keyword(trimmed) {
-                return false;
-            }
-            
-            // 4. 检查是否为SQL关键字或SQL子句关键字
-            const EXTENDED_SQL_KEYWORDS: &[&str] = &[
-                // 基础SQL关键字
-                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-                "TABLE", "VIEW", "INDEX", "DATABASE", "SCHEMA", "PROCEDURE", "FUNCTION", "TRIGGER",
-                "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "NATURAL", "SELF", "SEMI",
-                "ON", "USING", "AS", "ORDER", "GROUP", "BY", "HAVING", "LIMIT", "OFFSET", "TOP",
-                "DISTINCT", "ALL", "UNIQUE", "EXISTS", "IN", "LIKE", "ILIKE", "BETWEEN", "IS", "NOT",
-                "AND", "OR", "XOR", "EXCEPT", "INTERSECT", "UNION", "VALUES", "SET", "REPLACE",
-                // 子句和操作
-                "WITH", "AS", "OVER", "PARTITION", "ORDER", "GROUP", "BY", "HAVING", "LIMIT", "OFFSET",
-                "TOP", "FETCH", "FIRST", "NEXT", "ONLY", "FOR", "UPDATE", "NO", "KEY", "SHARE",
-                "NOWAIT", "WAIT", "SKIP", "LOCKED", "INTO", "OUTPUT", "RETURNING", "EXECUTE", "CALL",
-                // 特殊标识符
-                "DISTINCT", "ALL", "ANY", "SOME", "TRUE", "FALSE", "NULL", "UNKNOWN", "CAST", "CONVERT",
-                "EXTRACT", "DATE_TRUNC", "DATE_ADD", "DATE_SUB", "DATEDIFF", "TO_DATE", "TO_CHAR",
-                "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "NOW", "CURRENT_DATE", 
-                "CURRENT_TIME", "CURRENT_TIMESTAMP", "SYSDATE", "UTC_DATE", "UTC_TIME", 
-                // 存储格式和数据类型相关
-                "STORED", "BUCKETS", "ORC", "PARQUET", "TEXTFILE", "SEQUENCEFILE", "RCFILE", "AVRO",
-                "JSONFILE", "CSVFILE", "DISTRIBUTE", "SORT", "CLUSTER", "INTO", "OUT", "OF",
-                // 子查询相关
-                "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "NATURAL", "SELF", "SEMI", "ANTI",
-                // 操作符和特殊字符
-                "COUNT", "SUM", "AVG", "MAX", "MIN", "LEAD", "LAG", "RANK", "ROW_NUMBER", "NTILE"
-            ];
-            if EXTENDED_SQL_KEYWORDS.contains(&trimmed.to_uppercase().as_str()) {
-                return false;
-            }
-            
-            // 5. 过滤掉SQL函数名
-            let common_functions = [
-                "sum", "avg", "count", "max", "min", "distinct", "cast", "convert",
-                "date", "time", "year", "month", "day", "upper", "lower", "left", "right",
-                "abs", "round", "floor", "ceil", "length", "concat", "substr", "replace",
-                "explode", "array", "input__file__name", "first", "last", "lead", "lag",
-                "rank", "dense_rank", "row_number", "ntile", "percentile", "truncate", "ceiling",
-                "log", "log10", "exp", "sqrt", "power", "sin", "cos", "tan", "asin", "acos",
-                "atan", "atan2", "degrees", "radians", "trim", "ltrim", "rtrim", "substring",
-                "position", "coalesce", "nullif", "case", "when", "then", "else", "end",
-                "extract", "date_trunc", "date_add", "date_sub", "datediff", "to_date", "to_char",
-                "now", "current_date", "current_time", "current_timestamp", "exists", "in",
-                "like", "ilike", "between", "is", "not", "and", "or", "xor", "except", "intersect",
-                "union", "all", "any", "some", "over", "partition", "order", "group", "by"
-            ];
-            let lower_trimmed = trimmed.to_lowercase();
-            if common_functions.contains(&lower_trimmed.as_str()) {
-                return false;
-            }
-            
-            // 6. 过滤掉纯数字标识符
-            if trimmed.chars().all(|c| c.is_digit(10)) {
-                return false;
-            }
-            
-            // 7. 检查是否是有效的标识符格式（可以包含字母、数字、下划线、中文、连字符等）
-            // 同时确保不包含括号、引号等无效字符
-            let valid_chars = trimmed.chars().all(|c| {
-                c.is_alphanumeric() || c == '_' || c == '-' || 
-                (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF) || // 中文字符范围
-                (c as u32 >= 0x3040 && c as u32 <= 0x30FF) || // 日文平假名和片假名
-                (c as u32 >= 0xAC00 && c as u32 <= 0xD7AF)    // 韩文字符范围
-            });
-            
-            valid_chars
-        };
+        // 保存原始表集合，用于后续分析
+        let original_tables = tables.clone();
         
-        // 过滤数据库和模式标识符集合
-        databases.retain(filter_identifier);
-        schemas.retain(filter_identifier);
+        // 创建临时集合用于处理
+        let mut clean_columns = HashSet::new();
+        let mut clean_tables = HashSet::new();
+        let mut clean_schemas = HashSet::new();
         
-        // 对表名应用额外的严格过滤，避免常见的误识别
-        tables.retain(|id| {
-            filter_identifier(id) && 
-            // 额外检查：避免表名中包含常见SQL子句
-            !id.to_uppercase().contains("WHERE") &&
-            !id.to_uppercase().contains("BY") &&
-            !id.to_uppercase().contains("GROUP") &&
-            !id.to_uppercase().contains("ORDER") &&
-            !id.to_uppercase().contains("FROM") &&
-            !id.to_uppercase().contains("JOIN") &&
-            !id.to_uppercase().contains("EXISTS") &&
-            !id.to_uppercase().contains("INNER") &&
-            !id.to_uppercase().contains("LEFT") &&
-            !id.to_uppercase().contains("RIGHT") &&
-            // 避免将常见的列名模式识别为表名
-            !id.contains("_id") && !id.contains("_name") && !id.contains("_code") &&
-            !id.contains("_type") && !id.contains("_date") && !id.contains("_time") &&
-            // 避免全大写的字符串字面量被识别为表名
-            !id.chars().all(|c| c.is_alphabetic() && c.is_uppercase())
-        });
-        
-        // 对列名应用额外过滤，避免无效标识符
-        columns.retain(|id| {
-            filter_identifier(id) && 
-            // 避免列名中包含无效字符组合
-            !id.contains(")") && // 避免类似 "s)" 这样的无效列名
-            !id.contains("))") && // 避免类似 "products))" 这样的无效列名
-            // 避免LIKE子句中的字符串字面量被误识别为列名
-            !id.starts_with("'") && !id.ends_with("'") &&
-            !id.starts_with('"') && !id.ends_with('"') &&
-            // 避免数字常量被误识别为列名
-            !id.parse::<f64>().is_ok() &&
-            // 避免过于简单的列名被误识别
-            (id.trim().len() > 1 || 
-             (id.trim().len() == 1 && id.chars().all(|c| c.is_alphabetic() && !c.is_ascii_uppercase())))
-        });
-        
-        // 特殊处理星号列名
-        if columns.is_empty() && tables.iter().all(|t| !t.contains("*")) {
-            columns.insert("*".to_string());
+        // 1. 清理列集合 - 严格过滤无效项
+        for col in columns.iter() {
+            if col == "*" {
+                clean_columns.insert(col.clone());
+                continue;
+            }
+            
+            let trimmed = col.trim();
+            // 彻底移除：空字符串、字符串字面量、数字、关键字、特殊字符等
+            if trimmed.is_empty() || 
+               (trimmed.starts_with("'") && trimmed.ends_with("'") || trimmed.starts_with("'") && trimmed.ends_with("'") && trimmed.len() > 1) || // 字符串字面量，去掉长度限制
+               (trimmed.starts_with('"') && trimmed.ends_with('"') || trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 1) ||
+               (trimmed.starts_with('`') && trimmed.ends_with('`') && trimmed.len() > 2) ||
+               (trimmed.starts_with('[') && trimmed.ends_with(']') && trimmed.len() > 2) ||
+               trimmed.parse::<f64>().is_ok() ||
+               EnhancedSqlParserImprovedOptimized::is_keyword(trimmed.to_lowercase().as_str()) ||
+               trimmed.contains(';') || trimmed.contains(',') || trimmed.contains('.') ||
+               trimmed.len() == 1 ||
+               // 排除明显的非列名（如ASC, DESC等）
+               matches!(trimmed.to_uppercase().as_str(), "ASC" | "DESC" | "NULL" | "NOT" | "IN" | "LIKE" | "BETWEEN" | "AND" | "OR" | "IS" | "NOTNULL") {
+                continue;
+            }
+            
+            clean_columns.insert(trimmed.to_string());
         }
         
-        // 修复数据库、模式和表名的混淆
-        // 1. 将可能是表名的项从databases移到tables
-        let mut valid_databases = HashSet::new();
-        for db in databases.drain() {
-            // 数据库名通常不包含下划线，且长度较短或有特定模式
-            // 更严格的判断：大多数情况下，SQL中的表名不应该在databases集合中
-            // 除非它有明确的数据库名特征
-            let is_likely_db = db.len() <= 10 && 
-                              !db.contains("_") && 
-                              !db.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) &&
-                              // 常见数据库名
-                              (db.to_lowercase() == "mysql" || 
-                               db.to_lowercase() == "postgresql" || 
-                               db.to_lowercase() == "oracle" || 
-                               db.to_lowercase() == "sqlserver" ||
-                               db.to_lowercase() == "sqlite" ||
-                               db.to_lowercase() == "gaussdb" ||
-                               db.to_lowercase() == "hive" ||
-                               db.to_lowercase() == "db" ||
-                               db.to_lowercase() == "master" ||
-                               db.to_lowercase() == "tempdb" ||
-                               db.to_lowercase() == "model" ||
-                               db.to_lowercase() == "msdb");
+        // 2. 清理表集合 - 更智能的规则，优先保留表名，避免将列名误识别为表名
+        for table in tables.iter() {
+            let trimmed = table.trim();
             
-            if is_likely_db {
-                valid_databases.insert(db);
-            } else {
-                tables.insert(db);
+            // 移除：空字符串、关键字、单字符标识符
+            if trimmed.is_empty() || 
+               EnhancedSqlParserImprovedOptimized::is_keyword(trimmed.to_lowercase().as_str()) ||
+               trimmed.len() == 1 {
+                continue;
             }
-        }
-        *databases = valid_databases;
-        
-        // 2. 将可能是表名的项从schemas移到tables
-        let mut valid_schemas = HashSet::new();
-        for schema in schemas.drain() {
-            // 模式名通常是常见的如public、dbo等，或者符合特定命名规则
-            let lower_schema = schema.to_lowercase();
-            if lower_schema != "public" && lower_schema != "dbo" && lower_schema != "sys" &&
-               !lower_schema.starts_with("information_schema") {
-                tables.insert(schema);
-            } else {
-                valid_schemas.insert(schema);
+            
+            // 特殊处理：优先保留复数形式的标识符（常见表名形式）
+            let lower_table = trimmed.to_lowercase();
+            let is_plural = lower_table.ends_with("s") && !lower_table.ends_with("ss") && 
+                          !lower_table.ends_with("ous") && !lower_table.ends_with("us");
+            
+            // 表名特征检测
+            let is_table_like = 
+                is_plural ||
+                lower_table.ends_with("_table") ||
+                lower_table.ends_with("_view") ||
+                lower_table.ends_with("_data") ||
+                lower_table.contains("_") && !lower_table.ends_with("_id") && !lower_table.ends_with("_name") &&
+                !lower_table.ends_with("_type") && !lower_table.ends_with("_address"); // 排除更多列名特征
+            
+            // 列名模式检查 - 增强版本，添加更多常见列名
+            let is_column_pattern = 
+                lower_table.ends_with("_id") || 
+                lower_table.ends_with("_name") || 
+                lower_table.ends_with("_type") || 
+                lower_table.ends_with("_status") ||
+                lower_table.ends_with("_date") ||
+                lower_table.ends_with("_time") ||
+                lower_table.ends_with("_email") ||
+                lower_table.ends_with("_address") ||
+                // 常见单列名，添加更多项目
+                ["id", "name", "code", "type", "status", "date", "time", "value", "count", "address",
+                 "product_type", "category_id", "first_name", "last_name", "middle_name"].contains(&lower_table.as_str());
+            
+            // 如果明显是列名格式且同时存在于列集合中，则不应该作为表名保留
+            if is_column_pattern && clean_columns.contains(trimmed) {
+                continue;
             }
-        }
-        *schemas = valid_schemas;
-        
-        // 移除可能被误识别为表名的列名
-        let tables_clone = tables.clone();
-        let columns_clone = columns.clone();
-        
-        // 如果一个标识符同时出现在表名和列名集合中，基于上下文判断
-        let has_select_star = columns.contains("*");
-        
-        // 定义更精确的列名模式检测函数
-        let is_likely_column = |id: &str| -> bool {
-            let lower_id = id.to_lowercase();
-            // 常见的列名后缀
-            if lower_id.contains("_id") || lower_id.contains("_name") || lower_id.contains("_code") ||
-               lower_id.contains("_type") || lower_id.contains("_date") || lower_id.contains("_time") {
-                return true;
-            }
-            // 常见的单列名
-            if lower_id.len() <= 10 && 
-               !lower_id.contains(" ") && 
-               !lower_id.contains(".") &&
-               !lower_id.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) {
-                return true;
-            }
-            false
-        };
-        
-        for id in tables_clone.intersection(&columns_clone) {
-            // 如果有SELECT *或标识符看起来更像列名，这些共同标识符更可能是列名
-            if has_select_star || is_likely_column(id) {
-                tables.remove(id);
-            }
-            // 否则，判断是否更可能是表名（例如包含中文或长度较长）
-            else if id.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) || 
-                    id.len() > 10 || id.contains(".") {
-                columns.remove(id);
-            } else {
-                tables.remove(id);
+            
+            // 如果明显是表名，或者不是明显的列名，则保留
+            if is_table_like || !is_column_pattern {
+                clean_tables.insert(trimmed.to_string());
             }
         }
         
-        // 对于SELECT *的情况，我们需要更严格地过滤表名
-        if has_select_star {
-            // 在SELECT *的情况下，我们只保留可能是真正表名的标识符
-            let mut valid_tables: HashSet<String> = HashSet::new();
-            
-            // 定义可能的列名模式 - 更加智能，避免误判表名
-            let is_potential_column = |name: &String| -> bool {
-                // 常见的列名模式：包含下划线、长度适中、不包含中文
-                if name.contains("_") && 
-                   !name.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) &&
-                   name.len() < 10 {
-                    // 排除可能的特殊表名，如cxxtest
-                    if name.to_lowercase().contains("test") && name.len() > 5 {
-                        return false;
-                    }
-                    return true;
-                }
-                
-                // 单个简单单词更可能是列名
-                if name.len() < 8 && name.chars().all(|c| c.is_alphanumeric() || c == '_') &&
-                   !name.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) {
-                    // 排除常见的表名模式
-                    let lower_name = name.to_lowercase();
-                    if lower_name.contains("test") || lower_name.contains("table") || 
-                       lower_name.contains("data") || lower_name.contains("info") {
-                        return false;
-                    }
-                    return true;
-                }
-                
-                // 列名常见后缀判断
-                let lower_name = name.to_lowercase();
-                if lower_name.ends_with("id") || lower_name.ends_with("name") || 
-                   lower_name.ends_with("code") || lower_name.ends_with("type") {
-                    // 排除像customer_id这样的模式被错误识别为表名
-                    if lower_name.len() <= 10 {
-                        return true;
-                    }
-                }
-                
-                // 全大写的单词更可能是字符串字面量或常量，不是列名
-                if name.chars().all(|c| c.is_alphabetic() && c.is_uppercase()) {
-                    return true;
-                }
-                
-                // 其他可能是列名的情况
-                false
-            };
-            
-            for table in tables.iter() {
-                // 支持特殊表名模式
-                let lower_table = table.to_lowercase();
-                
-                // 判断是否为特殊表名
-                let is_special_table = 
-                    // cxxtest、unittest等测试表名
-                    (lower_table.contains("test") && table.len() > 5) ||
-                    // cls1、stu1等命名的表
-                    (lower_table.starts_with("cls") || lower_table.starts_with("stu")) && 
-                     table.chars().any(|c| c.is_numeric()) ||
-                    // 中文表名
-                    table.chars().any(|c| (c as u32 >= 0x4E00 && c as u32 <= 0x9FFF)) ||
-                    // 包含模式限定符的表名
-                    table.contains(".") ||
-                    // 包含下划线但长度较长的名称更可能是表名
-                    (table.contains("_") && table.len() >= 8) ||
-                    // 常见的表名后缀
-                    lower_table.ends_with("_table") || 
-                    lower_table.ends_with("_data") ||
-                    lower_table.ends_with("_info") ||
-                    lower_table.ends_with("_list") ||
-                    lower_table.ends_with("_master");
-                
-                // 如果是特殊表名，直接保留
-                if is_special_table {
-                    valid_tables.insert(table.clone());
-                }
-                // 过滤掉可能是列名的标识符
-                else if !is_potential_column(table) {
-                    valid_tables.insert(table.clone());
-                }
-            }
-            
-            // 只保留经过验证的表名
-            *tables = valid_tables;
-        }
-        
-        // 二次清理列名，确保没有表名混入
-        let tables_clone = tables.clone();
-        columns.retain(|col| !tables_clone.contains(col));
-        
-        // 确保字符串字面量不会出现在任何集合中
-        let clean_columns: HashSet<_> = columns.iter()
-            .filter(|&col| !col.starts_with("'") && !col.ends_with("'") &&
-                    !col.starts_with('"') && !col.ends_with('"') &&
-                    // 过滤掉可能是字符串字面量的内容，如"Hardware"
-                    !col.chars().all(|c| c.is_alphabetic() && c.is_uppercase()))
+        // 3. 处理表名和列名重叠问题
+        let overlapping_items: HashSet<String> = clean_tables
+            .intersection(&clean_columns)
             .cloned()
             .collect();
-        *columns = clean_columns;
         
-        // 清理表名，移除可能是字符串字面量的项
-        tables.retain(|table| {
-            !table.chars().all(|c| c.is_alphabetic() && c.is_uppercase()) &&
-            !table.starts_with("'") && !table.ends_with("'") &&
-            !table.starts_with('"') && !table.ends_with('"')
-        });
+        for item in overlapping_items {
+            // 在重叠情况下，优先判断是否应该是表名或列名
+            let lower_item = item.to_lowercase();
+            
+            // 判断是否明显是列名
+            let is_obviously_column = 
+                lower_item.ends_with("_id") || 
+                lower_item.ends_with("_type") || 
+                lower_item.ends_with("_address") ||
+                ["id", "type", "address", "product_type"].contains(&lower_item.as_str());
+            
+            // 判断是否明显是表名
+            let should_be_table = 
+                (lower_item.ends_with("s") && !lower_item.ends_with("ss") && 
+                !lower_item.ends_with("ous") && !lower_item.ends_with("us")) &&
+                !is_obviously_column ||
+                original_tables.contains(&item) && !is_obviously_column; // 如果在原始表集合中且不是明显的列名，优先作为表名
+            
+            if should_be_table {
+                // 如果应该是表名，从列集合中移除
+                clean_columns.remove(&item);
+            } else {
+                // 否则从表集合中移除
+                clean_tables.remove(&item);
+            }
+        }
+        
+        // 4. 清理schema集合 - 最小化保留
+        let common_schemas = ["public", "private", "internal", "external", "default", "sys", "system", "temp", "tempdb", "information_schema", "dbo"];
+        for schema in schemas.iter() {
+            let lower_schema = schema.to_lowercase();
+            // 仅保留常见schema名称，且不在表或列集合中
+            if common_schemas.contains(&lower_schema.as_str()) && 
+               !clean_tables.contains(schema) && 
+               !clean_columns.contains(schema) {
+                clean_schemas.insert(schema.clone());
+            }
+        }
+        
+        // 5. 清空数据库集合，因为SQL语句中很少明确指定数据库名
+        databases.clear();
+        
+        // 6. 如果没有列但有表，添加通配符
+        if clean_columns.is_empty() && !clean_tables.is_empty() {
+            clean_columns.insert("*".to_string());
+        }
+        
+        // 更新原始集合
+        *columns = clean_columns;
+        *tables = clean_tables;
+        *schemas = clean_schemas;
     }
 
     /// 预处理SQL，移除注释和规范化
@@ -1068,6 +897,9 @@ impl EnhancedSqlParserImprovedOptimized {
         // 查找FROM、JOIN、INTO等关键字后的表名
         let lower_sql = sql.to_lowercase();
         
+        // 处理WITH子句中的CTE和引用的表
+        self.handle_with_clauses(sql, tables, schemas, databases);
+        
         // 处理FROM子句
         for (i, _) in lower_sql.match_indices(" from ") {
             let start_pos = i + 6;
@@ -1101,8 +933,65 @@ impl EnhancedSqlParserImprovedOptimized {
             self.extract_tables_from_clause(&sql[start_pos..], tables, schemas, databases);
         }
         
+        // 处理CREATE TABLE AS SELECT语句
+        if let Some(create_pos) = lower_sql.find("create table ") {
+            let after_create = &lower_sql[create_pos + 13..];
+            if let Some(as_pos) = after_create.find(" as ") {
+                let table_name_part = &sql[create_pos + 13..create_pos + 13 + as_pos].trim();
+                self.extract_single_table_name(table_name_part, tables);
+                
+                // 处理AS SELECT后面的表名
+                let select_part = &sql[create_pos + 13 + as_pos + 4..];
+                self.extract_table_references_from_select(select_part, tables, schemas, databases);
+            }
+        }
+        
         // 直接从整个SQL中提取可能的表名（作为补充机制）
         self.extract_tables_from_whole_sql(sql, tables, schemas, databases);
+    }
+    
+    /// 处理WITH子句中的CTE和引用的表
+    fn handle_with_clauses(&self, sql: &str, tables: &mut HashSet<String>, schemas: &mut HashSet<String>, databases: &mut HashSet<String>) {
+        let lower_sql = sql.to_lowercase();
+        
+        if let Some(with_pos) = lower_sql.find("with ") {
+            // 找到第一个WITH关键字后的第一个SELECT
+            if let Some(main_select_pos) = lower_sql[with_pos..].find("select ") {
+                let cte_part = &sql[with_pos + 5..with_pos + main_select_pos].trim();
+                
+                // 处理每个CTE定义
+                let cte_definitions = self.split_sql_parts(cte_part, ',');
+                for cte_def in cte_definitions {
+                    let parts: Vec<&str> = cte_def.trim().splitn(2, |c: char| c == '(' || c.is_whitespace()).collect();
+                    if let Some(cte_name) = parts.first() {
+                        // 提取CTE中引用的表名
+                        if let Some(select_start) = cte_def.find('(') {
+                            let inner_sql = &cte_def[select_start + 1..];
+                            self.extract_table_references_from_select(inner_sql, tables, schemas, databases);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 从SELECT语句中提取表引用
+    fn extract_table_references_from_select(&self, select_part: &str, tables: &mut HashSet<String>, schemas: &mut HashSet<String>, databases: &mut HashSet<String>) {
+        // 递归提取嵌套SELECT中的表
+        let lower_select = select_part.to_lowercase();
+        
+        // 处理FROM子句
+        if let Some(from_pos) = lower_select.find(" from ") {
+            let from_part = &select_part[from_pos + 6..];
+            self.extract_tables_from_clause(from_part, tables, schemas, databases);
+        }
+        
+        // 处理JOIN子句
+        for (i, _) in lower_select.match_indices(" join ") {
+            let start_pos = i + 6;
+            let join_part = &select_part[start_pos..];
+            self.extract_tables_from_clause(join_part, tables, schemas, databases);
+        }
     }
     
     /// 从整个SQL中提取可能的表名（补充机制）
@@ -1183,10 +1072,12 @@ impl EnhancedSqlParserImprovedOptimized {
             let clean_table = candidate[..space_pos].trim();
             let alias_part = candidate[space_pos+1..].trim();
             
-            // 如果后面的部分是SQL关键字，则整个部分可能都是表名（例如带空格的表名）
-            if !SQL_KEYWORDS.contains(alias_part.to_lowercase().as_str()) && 
-               !alias_part.starts_with('(') && 
-               !alias_part.contains('=') {
+            // 如果后面的部分是SQL关键字或包含特殊字符，则认为前面是表名
+            if !alias_part.is_empty() && 
+               (SQL_KEYWORDS.contains(alias_part.to_lowercase().as_str()) || 
+                alias_part.starts_with('(') || 
+                alias_part.contains('=') || 
+                alias_part.contains(',')) {
                 clean_table
             } else {
                 candidate.trim()
@@ -1198,12 +1089,44 @@ impl EnhancedSqlParserImprovedOptimized {
         // 移除可能的括号
         let table_name = table_name.trim_matches(|c| c == '(' || c == ')');
         
-        // 检查是否是有效的表名
+        // 处理带引号的标识符
+        let table_name = if (table_name.starts_with('"') && table_name.ends_with('"')) || 
+                           (table_name.starts_with('`') && table_name.ends_with('`')) ||
+                           (table_name.starts_with('[') && table_name.ends_with(']')) {
+            &table_name[1..table_name.len()-1]
+        } else {
+            table_name
+        };
+        
+        // 更严格的表名过滤逻辑
         if !table_name.is_empty() && 
+           // 过滤掉纯数字
+           !table_name.chars().all(|c| c.is_numeric()) &&
+           // 过滤掉字符串字面量
+           !table_name.starts_with('\'') && !table_name.ends_with('\'') &&
+           // 过滤掉单个特殊字符（如'=', ')', '('等）
+           table_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.' || c == '-') &&
+           // 过滤掉SQL关键字（除非用引号括起来，但我们已经处理了引号）
            !SQL_KEYWORDS.contains(table_name.to_lowercase().as_str()) &&
-           // 允许特殊命名的表，如cxxtest、cls1、stu1等
-           !table_name.chars().all(|c| c.is_numeric()) {
-            tables.insert(table_name.to_string());
+           // 过滤掉常见的列名后缀
+           !table_name.to_lowercase().ends_with("_id") &&
+           !table_name.to_lowercase().ends_with("_cd") &&
+           // 过滤掉长度过短的标识符（通常表名不会是单个字符）
+           (table_name.len() > 1 || table_name.chars().all(|c| c.is_uppercase())) {
+            
+            // 如果包含点，分别验证每个部分
+            if table_name.contains('.') {
+                let parts: Vec<&str> = table_name.split('.').filter(|s| !s.is_empty()).collect();
+                // 确保所有部分都不是关键字或纯数字
+                if parts.iter().all(|&p| 
+                    !SQL_KEYWORDS.contains(p.to_lowercase().as_str()) && 
+                    !p.chars().all(|c| c.is_numeric())
+                ) {
+                    tables.insert(table_name.to_string());
+                }
+            } else {
+                tables.insert(table_name.to_string());
+            }
         }
     }
     
@@ -1285,6 +1208,36 @@ impl EnhancedSqlParserImprovedOptimized {
         }
     }
 
+    /// 判断标识符是否有效（用于表名、schema名、数据库名）
+    fn is_valid_identifier(&self, identifier: &str) -> bool {
+        // 基本检查
+        if identifier.is_empty() {
+            return false;
+        }
+        
+        // 过滤掉纯数字
+        if identifier.chars().all(|c| c.is_numeric()) {
+            return false;
+        }
+        
+        // 过滤掉特殊字符（只允许字母、数字、下划线、点和连字符）
+        if !identifier.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.' || c == '-') {
+            return false;
+        }
+        
+        // 过滤掉SQL关键字
+        if SQL_KEYWORDS.contains(identifier.to_lowercase().as_str()) {
+            return false;
+        }
+        
+        // 过滤掉长度过短的标识符（除非全部是大写）
+        if identifier.len() == 1 && !identifier.chars().all(|c| c.is_uppercase()) {
+            return false;
+        }
+        
+        true
+    }
+    
     /// 解析表标识符，处理database.schema.table格式
     fn parse_table_identifier(&self, identifier: &str, tables: &mut HashSet<String>, schemas: &mut HashSet<String>, databases: &mut HashSet<String>) {
         // 按点分割并过滤空部分
@@ -1292,12 +1245,21 @@ impl EnhancedSqlParserImprovedOptimized {
             .filter(|s| !s.is_empty())
             .collect();
         
+        // 基本验证：确保至少有一个非空部分且标识符看起来有效
+        if parts.is_empty() || !self.is_valid_identifier(&identifier.replace('.', "_")) {
+            return;
+        }
+        
         match parts.len() {
             1 => {
                 // 只有表名
                 let table = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[0]);
-                // 过滤掉关键字和常见schema名称
-                if !EnhancedSqlParserImprovedOptimized::is_keyword(&table) && !COMMON_SCHEMA_NAMES.contains(&table.to_lowercase().as_str()) {
+                // 更严格的过滤
+                if self.is_valid_identifier(&table) && 
+                   !COMMON_SCHEMA_NAMES.contains(&table.to_lowercase().as_str()) &&
+                   // 额外检查：不是常见的列名模式
+                   !table.to_lowercase().ends_with("_id") &&
+                   !table.to_lowercase().ends_with("_cd") {
                     tables.insert(table);
                 }
             },
@@ -1307,6 +1269,11 @@ impl EnhancedSqlParserImprovedOptimized {
                 let second_part = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[1]);
                 let first_part_lower = first_part.to_lowercase();
                 
+                // 首先确保两个部分都有效
+                if !self.is_valid_identifier(&first_part) || !self.is_valid_identifier(&second_part) {
+                    return;
+                }
+                
                 // 使用通用schema名称列表进行智能判断
                 if COMMON_SCHEMA_NAMES.contains(&first_part_lower.as_str()) || 
                    first_part_lower == "schema" || 
@@ -1314,13 +1281,17 @@ impl EnhancedSqlParserImprovedOptimized {
                    first_part_lower.ends_with("schema") {
                     // 很可能是schema名
                     schemas.insert(first_part);
-                    if !EnhancedSqlParserImprovedOptimized::is_keyword(&second_part) {
+                    // 额外检查：第二部分不是常见的列名模式
+                    if !second_part.to_lowercase().ends_with("_id") &&
+                       !second_part.to_lowercase().ends_with("_cd") {
                         tables.insert(second_part);
                     }
                 } else if first_part_lower.len() > 8 && !first_part_lower.ends_with("s") {
                     // 可能是数据库名
                     databases.insert(first_part);
-                    if !Self::is_keyword(&second_part) {
+                    // 额外检查：第二部分不是常见的列名模式
+                    if !second_part.to_lowercase().ends_with("_id") &&
+                       !second_part.to_lowercase().ends_with("_cd") {
                         tables.insert(second_part);
                     }
                 } else {
@@ -1341,23 +1312,36 @@ impl EnhancedSqlParserImprovedOptimized {
                 let schema = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[1]);
                 let table = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[2]);
                 
-                databases.insert(database);
-                schemas.insert(schema);
-                if !EnhancedSqlParserImprovedOptimized::is_keyword(&table) {
-                    tables.insert(table);
+                // 确保所有部分都有效
+                if self.is_valid_identifier(&database) && 
+                   self.is_valid_identifier(&schema) && 
+                   self.is_valid_identifier(&table) {
+                    databases.insert(database);
+                    schemas.insert(schema);
+                    // 额外检查：表名不是常见的列名模式
+                    if !table.to_lowercase().ends_with("_id") &&
+                       !table.to_lowercase().ends_with("_cd") {
+                        tables.insert(table);
+                    }
                 }
             },
             _ => {
                 // 处理复杂情况，尝试智能解析
                 if parts.len() >= 2 {
-                    // 对于多部分标识符，尝试组合最后两部分作为schema.表名
-                    let last_two = format!("{}.{}", 
-                        EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[parts.len()-2]), 
-                        EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[parts.len()-1]));
-                    tables.insert(last_two);
+                    // 对于多部分标识符，确保最后两部分都有效
+                    let part_n_minus_1 = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[parts.len()-2]);
+                    let part_n = EnhancedSqlParserImprovedOptimized::normalize_identifier(parts[parts.len()-1]);
+                    
+                    if self.is_valid_identifier(&part_n_minus_1) && self.is_valid_identifier(&part_n) {
+                        // 组合最后两部分作为schema.表名
+                        let last_two = format!("{}.{}", part_n_minus_1, part_n);
+                        tables.insert(last_two);
+                    }
                 } else if let Some(table_part) = parts.last() {
                     let table = EnhancedSqlParserImprovedOptimized::normalize_identifier(table_part);
-                    tables.insert(table);
+                    if self.is_valid_identifier(&table) {
+                        tables.insert(table);
+                    }
                 }
             }
         }
