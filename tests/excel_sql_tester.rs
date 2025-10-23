@@ -56,7 +56,7 @@ fn main() {
                  file_path,
                  success, total,
                  total - success, total,
-                 (success as f64 / *total as f64) * 100.0);
+                 (*success as f64 / *total as f64) * 100.0);
     }
     
     // 按数据库类型统计
@@ -411,10 +411,10 @@ fn find_sql_column(range: &calamine::Range<calamine::DataType>) -> Option<usize>
                            content_lower.contains("having") ||
                            // 检查是否包含表名模式
                            (content_lower.contains(".") && 
-                            (content_lower.contains("\") || 
+                            (content_lower.contains("\\") || 
                              content_lower.contains("[") || 
-                             content_lower.contains("`")) ||
-                            content_lower.contains("table ")) ||
+                             content_lower.contains("'") ||
+                             content_lower.contains("table "))) ||
                            // 检查是否包含SQL注释
                            content_lower.contains("--") ||
                            content_lower.contains("/*") {
@@ -501,6 +501,47 @@ fn get_database_types_for_sheet(sheet_name: &str) -> Vec<DatabaseType> {
 }
 
 // 保留空行，避免编译器警告
+
+// 比较解析结果和预期结果（忽略tables和columns数组顺序）
+fn compare_and_format_results(result: &str, expect_result: &str) -> (String, bool) {
+    match (serde_json::from_str::<serde_json::Value>(result), 
+           serde_json::from_str::<serde_json::Value>(expect_result)) {
+        (Ok(mut result_data), Ok(mut expect_data)) => {
+            // 规范化tables数组：使用自定义排序方法
+            if let Some(result_tables) = result_data.get_mut("tables").and_then(|t| t.as_array_mut()) {
+                result_tables.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            }
+            // 规范化tables数组：使用自定义排序方法
+            if let Some(expect_tables) = expect_data.get_mut("tables").and_then(|t| t.as_array_mut()) {
+                expect_tables.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            }
+            
+            // 规范化columns数组：使用自定义排序方法以忽略顺序差异
+            if let Some(result_columns) = result_data.get_mut("columns").and_then(|c| c.as_array_mut()) {
+                result_columns.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            }
+            if let Some(expect_columns) = expect_data.get_mut("columns").and_then(|c| c.as_array_mut()) {
+                expect_columns.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            }
+            
+            // 比较结果
+            if result_data == expect_data {
+                return ("✅ 结果匹配".to_string(), true);
+            } else {
+                // 找出差异
+                let diff = format!("❌ 结果不匹配\nResult: {}\nExpect: {}", result, expect_result);
+                return (diff, false);
+            }
+        },
+        (result_err, expect_err) => {
+            // 解析错误
+            let error_msg = format!("❌ JSON解析错误\nResult: {:?}\nExpect: {:?}", 
+                                   result_err.err(), 
+                                   expect_err.err());
+            return (error_msg, false);
+        }
+    }
+}
 
 fn run_performance_test(engine: &mut SqlopEngine) {
     // 基本性能测试 - 使用常见的SQL语句

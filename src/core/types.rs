@@ -80,6 +80,28 @@ pub struct ParseResult {
     pub parse_time_ms: u64,
 }
 
+impl ParseResult {
+    /// 检查tables集合是否包含指定的表名（接受&str类型）
+    pub fn tables_contains(&self, table_name: &str) -> bool {
+        self.tables.contains(table_name)
+    }
+    
+    /// 检查columns集合是否包含指定的列名（接受&str类型）
+    pub fn columns_contains(&self, column_name: &str) -> bool {
+        self.columns.contains(column_name)
+    }
+    
+    /// 检查schemas集合是否包含指定的模式名（接受&str类型）
+    pub fn schemas_contains(&self, schema_name: &str) -> bool {
+        self.schemas.contains(schema_name)
+    }
+    
+    /// 检查databases集合是否包含指定的数据库名（接受&str类型）
+    pub fn databases_contains(&self, database_name: &str) -> bool {
+        self.databases.contains(database_name)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OperationType {
     SELECT,

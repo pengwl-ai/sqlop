@@ -268,7 +268,7 @@ impl SqlAstVisitor for ObjectExtractor {
                 SelectItem::ExprWithAlias { expr, alias: _ } => {
                     self.visit_expr(expr);
                 },
-                SelectItem::QualifiedWildcard(qualifier, _) => {
+                SelectItem::QualifiedWildcard(_qualifier, _) => {
                     // 暂时跳过处理
                 },
                 SelectItem::Wildcard(_) => {}

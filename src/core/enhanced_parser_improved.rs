@@ -503,7 +503,7 @@ impl EnhancedSqlParserImproved {
     }
 
     /// 提取Schema信息
-    fn extract_schemas(&self, sql_lower: &str, sql: &str, schemas: &mut HashSet<String>) {
+    fn extract_schemas(&self, _sql_lower: &str, sql: &str, schemas: &mut HashSet<String>) {
         // 对于MySQL方言，默认不识别schema，除非明确指定了CREATE SCHEMA或USE SCHEMA
         if let Some(ref dialect) = self.dialect {
             if dialect.to_lowercase() == "mysql" {

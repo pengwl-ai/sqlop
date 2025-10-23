@@ -117,9 +117,9 @@ mod tests {
         let result = adapter.extract_metadata(sql).expect("解析失败");
         assert_eq!(result.database_type, DatabaseType::Highgo);
         assert_eq!(result.operation_type, OperationType::SELECT);
-        assert!(result.tables.contains("users"));
-        assert!(result.columns.contains("id"));
-        assert!(result.columns.contains("name"));
+        assert!(result.tables_contains("users"));
+        assert!(result.columns_contains("id"));
+        assert!(result.columns_contains("name"));
     }
 
     #[test]

@@ -1,6 +1,5 @@
 use crate::core::error::{ParseError, Result};
 use crate::EnhancedSqlParser;
-use crate::core::enhanced_parser_improved::EnhancedSqlParserImproved;
 use crate::core::enhanced_parser_improved_optimized::EnhancedSqlParserImprovedOptimized;
 use crate::core::types::{
     AuditLog, DatabaseType, OperationType, ParseResult, ParserConfig, SqlObject,
@@ -284,23 +283,23 @@ impl SqlParser {
         // 先获取dialect_name，因为dialect会在调用parse_sql_enhanced时被移动
         let dialect_name = self.get_dialect_name(&*dialect);
         
+        // 创建Vec类型的变量用于传递给parse_sql方法
+        let mut vec_databases = Vec::new();
+        let mut vec_schemas = Vec::new();
+        let mut vec_tables = Vec::new();
+        let mut vec_columns = Vec::new();
+        
         // 尝试使用优化版增强解析器
-    let mut databases = HashSet::new();
-    let mut schemas = HashSet::new();
-    let mut tables = HashSet::new();
-    let mut columns = HashSet::new();
-    
-    // 先尝试优化版增强解析器
-    let optimized_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name.clone()));
-    if optimized_parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns) {
+        let optimized_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name.clone()));
+        if optimized_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
         // 构建解析结果
         let result = ParseResult {
             database_type: db_type.clone(),
             original_sql: sql.to_string(),
-            databases,
-            schemas,
-            tables,
-            columns,
+            databases: vec_databases.into_iter().collect(),
+            schemas: vec_schemas.into_iter().collect(),
+            tables: vec_tables.into_iter().collect(),
+            columns: vec_columns.into_iter().collect(),
             objects: Vec::new(),
             operation_type: self.infer_operation_type(sql),
             parse_time_ms: 0
@@ -314,23 +313,25 @@ impl SqlParser {
         Ok(enhanced_result) => Ok(enhanced_result.base_result),
         Err(_) => {
             // 如果增强版解析失败，尝试使用最新的改进版增强解析器
-            databases.clear();
-            schemas.clear();
-            tables.clear();
-            columns.clear();
             
             // 使用已经预先保存的dialect_name
-            let mut improved_parser = EnhancedSqlParserImproved::new(Some(dialect_name));
+            let improved_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name));
             
-            if improved_parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns) {
-                    // 构建解析结果
+            // 创建Vec用于传递给parse_sql方法
+            let mut vec_databases: Vec<String> = Vec::new();
+            let mut vec_schemas: Vec<String> = Vec::new();
+            let mut vec_tables: Vec<String> = Vec::new();
+            let mut vec_columns: Vec<String> = Vec::new();
+            
+            if improved_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
+                    // 构建解析结果，将Vec转换为HashSet
                     let result = ParseResult {
                         database_type: db_type.clone(),
                         original_sql: sql.to_string(),
-                        databases,
-                        schemas,
-                        tables,
-                        columns,
+                        databases: vec_databases.into_iter().collect(),
+                        schemas: vec_schemas.into_iter().collect(),
+                        tables: vec_tables.into_iter().collect(),
+                        columns: vec_columns.into_iter().collect(),
                         objects: Vec::new(),
                         operation_type: self.infer_operation_type(sql),
                         parse_time_ms: 0

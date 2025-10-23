@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::time::{Instant, Duration};
 use std::thread::available_parallelism;
+use std::num::NonZeroUsize;
 use sqlop::core::enhanced_parser_improved_optimized::EnhancedSqlParserImprovedOptimized;
 
 // 测试SQL语句示例
@@ -33,7 +34,7 @@ const TEST_SQL_QUERIES: &[&str] = &[
      HAVING AVG(salary) > 5000",
     
     // 带引号标识符
-    "SELECT `user-name`, "email-address", [full_name] FROM "user_table"",
+    "SELECT `user-name`, \"email-address\", [full_name] FROM \"user_table\"", 
     
     // 数据库特定语法
     "SELECT /*+ INDEX(users idx_user_id) */ * FROM users",
@@ -41,7 +42,7 @@ const TEST_SQL_QUERIES: &[&str] = &[
 
 fn main() {
     println!("=== SQL解析引擎性能基准测试 ===");
-    println!("可用CPU核心数: {}", available_parallelism().unwrap_or(1));
+    println!("可用CPU核心数: {}", available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap()).get());
     
     // 测试参数
     let test_iterations = 10000; // 测试迭代次数
@@ -70,10 +71,10 @@ fn run_basic_performance_test(iterations: usize, batch_size: usize) {
     println!("预热解析器...");
     for _ in 0..100 {
         for &sql in TEST_SQL_QUERIES {
-            let mut databases = HashSet::new();
-            let mut schemas = HashSet::new();
-            let mut tables = HashSet::new();
-            let mut columns = HashSet::new();
+            let mut databases = Vec::new();
+            let mut schemas = Vec::new();
+            let mut tables = Vec::new();
+            let mut columns = Vec::new();
             parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns);
         }
     }
@@ -89,10 +90,10 @@ fn run_basic_performance_test(iterations: usize, batch_size: usize) {
             let sql_index = (batch * batch_size + i) % TEST_SQL_QUERIES.len();
             let sql = TEST_SQL_QUERIES[sql_index];
             
-            let mut databases = HashSet::new();
-            let mut schemas = HashSet::new();
-            let mut tables = HashSet::new();
-            let mut columns = HashSet::new();
+            let mut databases = Vec::new();
+            let mut schemas = Vec::new();
+            let mut tables = Vec::new();
+            let mut columns = Vec::new();
             
             if parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns) {
                 success_count += 1;
@@ -150,22 +151,22 @@ fn run_complex_sql_test(iterations: usize) {
     let parser = EnhancedSqlParserImprovedOptimized::new(None);
     
     // 预热
-    for _ in 0..10 {
-        let mut databases = HashSet::new();
-        let mut schemas = HashSet::new();
-        let mut tables = HashSet::new();
-        let mut columns = HashSet::new();
-        parser.parse_sql(complex_sql, &mut databases, &mut schemas, &mut tables, &mut columns);
-    }
+      for _ in 0..10 {
+         let mut databases = Vec::new();
+         let mut schemas = Vec::new();
+         let mut tables = Vec::new();
+         let mut columns = Vec::new();
+         parser.parse_sql(complex_sql, &mut databases, &mut schemas, &mut tables, &mut columns);
+      }
     
     // 测试
     let start_time = Instant::now();
     
     for _ in 0..iterations {
-        let mut databases = HashSet::new();
-        let mut schemas = HashSet::new();
-        let mut tables = HashSet::new();
-        let mut columns = HashSet::new();
+        let mut databases = Vec::new();
+        let mut schemas = Vec::new();
+        let mut tables = Vec::new();
+        let mut columns = Vec::new();
         parser.parse_sql(complex_sql, &mut databases, &mut schemas, &mut tables, &mut columns);
     }
     
@@ -196,10 +197,10 @@ fn run_dialect_specific_test(iterations: usize) {
         
         // 预热
         for _ in 0..10 {
-            let mut databases = HashSet::new();
-            let mut schemas = HashSet::new();
-            let mut tables = HashSet::new();
-            let mut columns = HashSet::new();
+            let mut databases = Vec::new();
+            let mut schemas = Vec::new();
+            let mut tables = Vec::new();
+            let mut columns = Vec::new();
             parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns);
         }
         
@@ -207,10 +208,10 @@ fn run_dialect_specific_test(iterations: usize) {
         let start_time = Instant::now();
         
         for _ in 0..iterations {
-            let mut databases = HashSet::new();
-            let mut schemas = HashSet::new();
-            let mut tables = HashSet::new();
-            let mut columns = HashSet::new();
+            let mut databases = Vec::new();
+            let mut schemas = Vec::new();
+            let mut tables = Vec::new();
+            let mut columns = Vec::new();
             parser.parse_sql(sql, &mut databases, &mut schemas, &mut tables, &mut columns);
         }
         
