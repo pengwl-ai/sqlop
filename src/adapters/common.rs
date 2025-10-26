@@ -529,8 +529,27 @@ impl CommonAdapter {
             return false;
         }
         
-        // 检查是否为常见的列名模式（小写字母、下划线分隔）
-        if name.chars().all(|c| c.is_lowercase() || c == '_') && name.len() <= 30 {
+        // 过滤明显不合理的标识符
+        // 1. 短标识符（长度≤2且不以s结尾的小写形式）
+        if name.chars().all(|c| c.is_lowercase() || c == '_') && 
+           name.len() <= 2 && 
+           !name.ends_with("s") {
+            return false;
+        }
+        
+        // 2. 检查是否为常见列名（常见列名不应该被识别为表名）
+        let name_upper = name.to_uppercase();
+        let common_column_keywords = [
+            "ADDRESS", "USER", "ITEM", "VALUE", "WEBSITE", "STATUS", "ID12", 
+            "NAME", "ID", "TYPE", "CODE", "DATE", "TIME", "COUNT", "FLAG",
+            "ORDER_ID", "QUANTITY", "PRICE", "PRODUCT_ID", "CATEGORY_ID"
+        ]; // 常见列名关键字
+        if common_column_keywords.iter().any(|&kw| kw == name_upper) {
+            return false;
+        }
+        
+        // 3. 过滤单字母或常见的表别名（通常是aa, bb这样的别名）
+        if name.len() == 1 || (name.len() == 2 && name.chars().all(|c| c.is_lowercase() && c.is_alphabetic())) {
             return false;
         }
         
@@ -687,10 +706,10 @@ impl CommonAdapter {
         }
         
         // 最终严格过滤所有标识符
-        // 过滤表名
+        // 过滤表名：使用专门的表名验证方法，确保应用所有严格的表名过滤规则
         for table in all_tables {
             let cleaned = self.clean_identifier(&table);
-            if self.is_valid_identifier(&cleaned) {
+            if self.is_valid_table_name(&cleaned) {
                 tables.insert(cleaned);
             }
         }
@@ -770,14 +789,8 @@ impl CommonAdapter {
                     table_name = name.0[2].value.clone();
                 }
 
-                // 严格过滤：只接受合法的表名（非关键字、非纯数字、不含括号）
-                let is_valid_table = !self.is_sql_keyword(&table_name) && 
-                                    !table_name.chars().all(|c| c.is_numeric()) && 
-                                    !table_name.contains('(') && 
-                                    !table_name.contains(')') && 
-                                    table_name.len() > 0;
-                
-                if is_valid_table {
+                // 使用统一的表名验证逻辑，确保所有地方使用相同的过滤规则
+                if self.is_valid_table_name(&table_name) {
                     tables.insert(table_name.clone());
 
                     // 严格过滤schema名

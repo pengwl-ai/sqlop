@@ -29,6 +29,9 @@ use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
+// 导出表和视图相关的工具函数
+pub use utils::{filter_tables, extract_view_info};
+
 pub struct SqlopEngine {
     parser: SqlParser,
 }

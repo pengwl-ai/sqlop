@@ -10,6 +10,7 @@ use sqlparser::ast::Statement;
 use sqlparser::dialect::{Dialect, MySqlDialect, PostgreSqlDialect, MsSqlDialect};
 
 use crate::adapters::dialects::enhanced_mysql_dialect::EnhancedMySqlDialect;
+use crate::core::utils::table_view_utils::{filter_tables, extract_view_info};
 use std::collections::HashSet;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -292,18 +293,34 @@ impl SqlParser {
         // 尝试使用优化版增强解析器
         let optimized_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name.clone()));
         if optimized_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
-        // 构建解析结果
-        let result = ParseResult {
-            database_type: db_type.clone(),
-            original_sql: sql.to_string(),
-            databases: vec_databases.into_iter().collect(),
-            schemas: vec_schemas.into_iter().collect(),
-            tables: vec_tables.into_iter().collect(),
-            columns: vec_columns.into_iter().collect(),
-            objects: Vec::new(),
-            operation_type: self.infer_operation_type(sql),
-            parse_time_ms: 0
-        };
+            // 应用表名过滤和视图信息提取
+            vec_tables = filter_tables(&vec_tables);
+            let (view_tables, view_columns) = extract_view_info(sql);
+            
+            // 合并视图信息到结果中（避免重复）
+            for table in view_tables {
+                if !vec_tables.contains(&table) {
+                    vec_tables.push(table);
+                }
+            }
+            for column in view_columns {
+                if !vec_columns.contains(&column) {
+                    vec_columns.push(column);
+                }
+            }
+            
+            // 构建解析结果
+            let result = ParseResult {
+                database_type: db_type.clone(),
+                original_sql: sql.to_string(),
+                databases: vec_databases.into_iter().collect(),
+                schemas: vec_schemas.into_iter().collect(),
+                tables: vec_tables.into_iter().collect(),
+                columns: vec_columns.into_iter().collect(),
+                objects: Vec::new(),
+                operation_type: self.infer_operation_type(sql),
+                parse_time_ms: 0
+            };
         
         return Ok(result);
     }
@@ -324,6 +341,22 @@ impl SqlParser {
             let mut vec_columns: Vec<String> = Vec::new();
             
             if improved_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
+                    // 应用表名过滤和视图信息提取
+                    vec_tables = filter_tables(&vec_tables);
+                    let (view_tables, view_columns) = extract_view_info(sql);
+                    
+                    // 合并视图信息到结果中（避免重复）
+                    for table in view_tables {
+                        if !vec_tables.contains(&table) {
+                            vec_tables.push(table);
+                        }
+                    }
+                    for column in view_columns {
+                        if !vec_columns.contains(&column) {
+                            vec_columns.push(column);
+                        }
+                    }
+                    
                     // 构建解析结果，将Vec转换为HashSet
                     let result = ParseResult {
                         database_type: db_type.clone(),

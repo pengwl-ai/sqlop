@@ -482,72 +482,124 @@ impl EnhancedSqlParserImprovedOptimized {
         self.extract_column_references(sql, columns);
     }
     
-    /// 处理子查询
+    /// 处理子查询 - 增强版，处理各种位置的子查询
     fn handle_subqueries(&self, sql: &str, databases: &mut Vec<String>, schemas: &mut Vec<String>, tables: &mut Vec<String>, columns: &mut Vec<String>) {
         let lower_sql = sql.to_lowercase();
-        let mut in_subquery = false;
-        let mut subquery_start = 0;
-        let mut paren_count = 0;
-        
-        // 查找子查询 - 正确处理UTF-8字符
         let chars: Vec<char> = lower_sql.chars().collect();
         let char_count = chars.len();
         
-        for i in 0..char_count {
-            // 检查子查询开始标记
-            if i > 3 {
-                // 检查当前位置前面4个字符是否是"from"
-                let is_from = i-3 <= char_count && 
-                              chars[i-4] == 'f' && 
-                              chars[i-3] == 'r' && 
-                              chars[i-2] == 'o' && 
-                              chars[i-1] == 'm';
-                
-                if is_from {
-                    // 转换字符索引为字节索引
-                    let byte_pos = chars[..i].iter().map(|c| c.len_utf8()).sum();
-                    let rest = &lower_sql[byte_pos..];
-                    
-                    // 查找FROM后的子查询开始
-                    if let Some(sub_start) = rest.find('(') {
-                        in_subquery = true;
-                        // 转换字节索引为字符索引
-                        let sub_start_chars: Vec<char> = rest[..sub_start].chars().collect();
-                        subquery_start = i + sub_start_chars.len();
-                        paren_count = 1;
-                    }
-                }
-            }
+        // 子查询开始标记模式
+        let subquery_patterns = [
+            // FROM 子句中的子查询
+            "from (", 
+            // IN 子句中的子查询
+            "in (", 
+            // EXISTS 子句中的子查询
+            "exists (", 
+            // 作为表达式一部分的子查询
+            "= (", 
+            "> (", 
+            "< (", 
+            ">= (", 
+            "<= (", 
+            // JOIN 子句中的子查询
+            "join (", 
+            "inner join (", 
+            "left join (", 
+            "right join (", 
+            "full join ("
+        ];
+        
+        // 遍历所有可能的子查询位置
+        let mut i = 0;
+        while char_count >= 5 && i < char_count - 5 { // 确保有足够字符进行比较
+            // 检查是否匹配任何子查询模式
+            let mut matched = false;
             
-            // 处理括号
-            if in_subquery {
-                let c = chars[i];
-                if c == '(' {
-                    paren_count += 1;
-                } else if c == ')' {
-                    paren_count -= 1;
+            for pattern in &subquery_patterns {
+                let pattern_len = pattern.len();
+                if i + pattern_len <= char_count {
+                    let window = chars[i..i+pattern_len]
+                        .iter()
+                        .collect::<String>()
+                        .to_lowercase();
                     
-                    // 子查询结束
-                    if paren_count == 0 {
-                        in_subquery = false;
-                        // 转换字符索引为字节索引
-                        let start_byte = chars[..subquery_start+1].iter().map(|c| c.len_utf8()).sum();
-                        let end_byte = chars[..i].iter().map(|c| c.len_utf8()).sum();
+                    if window == *pattern {
+                        // 找到子查询开始
+                        let start_pos = i + pattern_len - 1; // 指向左括号位置
                         
-                        // 添加边界检查，确保start_byte <= end_byte
-                        if start_byte <= end_byte && end_byte <= sql.len() {
+                        // 转换字符索引为字节索引
+                        let start_byte = chars[..start_pos].iter().map(|c| c.len_utf8()).sum();
+                        
+                        // 查找匹配的右括号
+                        if let Some(end_byte) = self.find_matching_parenthesis(sql, start_byte) {
                             // 提取子查询（不包含括号）
-                            let subquery = &sql[start_byte..end_byte];
+                            let subquery = &sql[start_byte+1..end_byte];
                             
                             // 递归解析子查询
                             self.parse_sql(subquery, databases, schemas, tables, columns);
-                        } else {
-                            // 如果索引无效，跳过这个子查询的处理
-                            continue;
+                            
+                            // 跳过已处理的部分
+                            i = chars[..end_byte+1].iter().map(|c| c.len_utf8()).sum();
+                            matched = true;
+                            break;
                         }
                     }
                 }
             }
+            
+            if !matched {
+                i += 1;
+            }
+        }
+        
+        // 直接调用handle_nested_subqueries处理复杂嵌套情况
+        self.handle_nested_subqueries(sql, databases, schemas, tables, columns);
+    }
+    
+    // 这个函数已在文件后面定义，这里不再重复
+    
+    /// 处理嵌套子查询 - 专门处理复杂嵌套情况
+    fn handle_nested_subqueries(&self, sql: &str, databases: &mut Vec<String>, schemas: &mut Vec<String>, tables: &mut Vec<String>, columns: &mut Vec<String>) {
+        let chars: Vec<char> = sql.chars().collect();
+        let mut paren_stack = Vec::new();
+        let mut potential_subqueries = Vec::new();
+        
+        // 收集所有括号组
+        for (i, c) in chars.iter().enumerate() {
+            if *c == '(' {
+                paren_stack.push(i);
+            } else if *c == ')' && !paren_stack.is_empty() {
+                let start = paren_stack.pop().unwrap();
+                // 检查括号内容是否可能是SQL查询
+                if i - start > 10 { // 至少包含一些基本SQL关键字
+                    // 安全地获取括号内容，避免UTF-8字符边界问题
+                    let content = sql.chars()
+                        .skip(start + 1)
+                        .take(i - start - 1)
+                        .collect::<String>();
+                    let lower_content = content.to_lowercase();
+                    
+                    // 检查是否包含基本SQL关键字组合
+                    if (lower_content.contains("select") && lower_content.contains("from")) ||
+                       (lower_content.contains("with") && (lower_content.contains("select") || lower_content.contains("as")))
+                    {
+                        potential_subqueries.push((start, i));
+                    }
+                }
+            }
+        }
+        
+        // 解析潜在的子查询（从最内层开始，避免重复处理）
+        potential_subqueries.sort_by(|a, b| b.0.cmp(&a.0)); // 按起始位置降序排序
+        
+        for (start, end) in potential_subqueries {
+            // 安全地获取子查询内容，避免UTF-8字符边界问题
+            let subquery = sql.chars()
+                .skip(start + 1)
+                .take(end - start - 1)
+                .collect::<String>();
+            self.parse_sql(&subquery, databases, schemas, tables, columns);
         }
     }
     
@@ -634,65 +686,147 @@ impl EnhancedSqlParserImprovedOptimized {
         
         // 检查是否包含WITH子句（支持"with "和" with "两种格式）
         if let Some(with_pos) = lower_sql.find("with ").or_else(|| lower_sql.find(" with ")) {
-            let start_pos = if lower_sql[with_pos..].starts_with("with ") {
-                with_pos + 5
-            } else {
-                with_pos + 6
-            };
-            
-            // 查找WITH子句的结束位置（遇到主要语句关键字时停止）
-            let with_clause = &sql[start_pos..];
-            
-            // 分割CTE定义（通常用逗号分隔）
-            let cte_parts = self.split_sql_parts(with_clause, ',');
-            
-            for cte in cte_parts {
-                let trimmed_cte = cte.trim();
-                if trimmed_cte.is_empty() {
-                    continue;
-                }
+            // 查找主查询的开始位置，考虑SELECT、INSERT、UPDATE、DELETE等
+            if let Some(main_query_start) = self.find_main_query_start(&lower_sql, with_pos) {
+                let cte_section = &sql[with_pos + 5..main_query_start].trim();
                 
-                // 提取CTE名称（AS关键字前的部分）
-                if let Some(as_pos) = trimmed_cte.to_lowercase().find(" as ") {
-                    let cte_name_part = trimmed_cte[..as_pos].trim();
-                    
-                    // 处理CTE名称，可能包含列定义
-                    if let Some(left_paren_pos) = cte_name_part.find('(') {
-                        let cte_name = cte_name_part[..left_paren_pos].trim();
+                // 分割多个CTE定义，考虑括号嵌套情况
+                let cte_definitions = self.split_cte_definitions(cte_section);
+                
+                for cte_def in cte_definitions {
+                    if let Some((cte_name, cte_columns, cte_body)) = self.parse_single_cte(&cte_def) {
+                        // 添加CTE名称到表集合
                         if !cte_name.is_empty() {
-                            tables.push(cte_name.to_string());
+                            tables.push(cte_name);
                         }
                         
-                        // 提取CTE的列定义
-                        if let Some(right_paren_pos) = self.find_matching_parenthesis(cte_name_part, left_paren_pos) {
-                            let columns_str = &cte_name_part[left_paren_pos + 1..right_paren_pos];
-                            let column_parts = self.split_sql_parts(columns_str, ',');
-                            for col in column_parts {
-                                let trimmed_col = col.trim();
-                                if !trimmed_col.is_empty() {
-                                    columns.push(EnhancedSqlParserImprovedOptimized::normalize_identifier(&trimmed_col));
-                                }
+                        // 添加CTE列定义到列集合
+                        for col in cte_columns {
+                            if !col.is_empty() {
+                                columns.push(col);
                             }
                         }
-                    } else {
-                        // 简单的CTE名称
-                        if !cte_name_part.is_empty() {
-                            tables.push(cte_name_part.to_string());
+                        
+                        // 递归解析CTE内部的SQL
+                        if !cte_body.is_empty() {
+                            self.parse_sql(&cte_body, databases, schemas, tables, columns);
                         }
                     }
-                    
-                    // 解析CTE内部的SQL语句
-                    let cte_body = &trimmed_cte[as_pos + 4..].trim();
-                    if cte_body.starts_with('(') && cte_body.ends_with(')') {
-                        let inner_sql = &cte_body[1..cte_body.len()-1].trim();
-                        // 递归解析CTE内部的SQL
-                        self.parse_sql(inner_sql, databases, schemas, tables, columns);
+                }
+            }
+        }
+    }
+    
+    // 查找主查询的开始位置
+    fn find_main_query_start(&self, lower_sql: &str, with_pos: usize) -> Option<usize> {
+        // 查找主查询开始的位置，可以是SELECT、INSERT、UPDATE、DELETE等关键字
+        let main_query_patterns = ["select ", "insert ", "update ", "delete ", "create ", "alter ", "drop "];
+        
+        let mut min_pos = None;
+        for pattern in &main_query_patterns {
+            if let Some(pos) = lower_sql[with_pos..].find(pattern) {
+                let absolute_pos = with_pos + pos;
+                match min_pos {
+                    Some(current_min) if absolute_pos < current_min => min_pos = Some(absolute_pos),
+                    None => min_pos = Some(absolute_pos),
+                    _ => {}
+                }
+            }
+        }
+        
+        min_pos
+    }
+    
+    // 分割多个CTE定义，考虑括号嵌套
+    fn split_cte_definitions(&self, cte_section: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut start = 0;
+        let mut depth = 0usize; // 显式声明为usize类型
+        
+        for (i, c) in cte_section.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => depth = if depth > 0 { depth - 1 } else { 0 },
+                ',' if depth == 0 => {
+                    // 只有在顶级括号层级才能分割CTE定义
+                    result.push(cte_section[start..i].trim().to_string());
+                    start = i + 1;
+                },
+                _ => {}
+            }
+        }
+        
+        // 添加最后一个CTE定义
+        if start < cte_section.len() {
+            result.push(cte_section[start..].trim().to_string());
+        }
+        
+        result
+    }
+    
+    // 解析单个CTE定义，返回(CTE名称, CTE列定义, CTE主体SQL)
+    fn parse_single_cte(&self, cte_def: &str) -> Option<(String, Vec<String>, String)> {
+        // 支持多种AS关键字格式
+        let lower_cte = cte_def.to_lowercase();
+        let as_pos = lower_cte.find(" as ").or_else(|| lower_cte.find("as "))?;
+        
+        // 提取CTE名称部分（包括可能的列定义）
+        let name_part = cte_def[..as_pos].trim();
+        
+        // 解析CTE名称和列定义
+        let (cte_name, cte_columns) = self.parse_cte_name_and_columns(name_part);
+        
+        // 提取并解析CTE主体
+        let body_start = as_pos + (if lower_cte[as_pos..].starts_with(" as ") { 4 } else { 3 });
+        let cte_body = cte_def[body_start..].trim();
+        
+        // 处理CTE主体（可能有括号包围）
+        let inner_body = if cte_body.starts_with('(') {
+            match self.find_matching_parenthesis(cte_def, body_start) {
+                Some(right_paren_pos) => {
+                    if right_paren_pos > body_start + 1 {
+                        cte_def[body_start + 1..right_paren_pos].trim().to_string()
                     } else {
-                        // 对于没有括号包围的CTE体，直接解析
-                        self.parse_sql(cte_body, databases, schemas, tables, columns);
+                        "".to_string()
+                    }
+                },
+                None => cte_body.to_string() // 如果没有匹配的右括号，就使用整个部分
+            }
+        } else {
+            cte_body.to_string()
+        };
+        
+        Some((cte_name, cte_columns, inner_body))
+    }
+    
+    // 解析CTE名称和列定义
+    fn parse_cte_name_and_columns(&self, name_part: &str) -> (String, Vec<String>) {
+        let mut cte_name = "".to_string();
+        let mut cte_columns = Vec::new();
+        
+        // 尝试找到列定义的左括号
+        if let Some(left_paren_pos) = name_part.find('(') {
+            // 提取CTE名称
+            cte_name = name_part[..left_paren_pos].trim().to_string();
+            
+            // 提取列定义
+            if let Some(right_paren_pos) = self.find_matching_parenthesis(name_part, left_paren_pos) {
+                let columns_str = &name_part[left_paren_pos + 1..right_paren_pos];
+                let column_parts = self.split_sql_parts(columns_str, ',');
+                
+                for col in column_parts {
+                    let trimmed_col = col.trim();
+                    if !trimmed_col.is_empty() {
+                        cte_columns.push(EnhancedSqlParserImprovedOptimized::normalize_identifier(&trimmed_col));
                     }
                 }
-            }}
+            }
+        } else {
+            // 简单情况：只有CTE名称
+            cte_name = name_part.trim().to_string();
+        }
+        
+        (cte_name, cte_columns)
     }
 
     fn cleanup_result(&self, databases: &mut Vec<String>, schemas: &mut Vec<String>, tables: &mut Vec<String>, columns: &mut Vec<String>) {
@@ -704,7 +838,7 @@ impl EnhancedSqlParserImprovedOptimized {
         let mut table_set = HashSet::new();
         let mut schema_set = HashSet::new();
         
-        // 1. 清理列集合 - 严格过滤无效项，并保持顺序
+        // 1. 清理列集合 - 更宽松的过滤规则，并保持顺序
         let mut clean_columns = Vec::new();
         for col in columns.iter() {
             if col == "*" && !column_set.contains("*") {
@@ -714,17 +848,32 @@ impl EnhancedSqlParserImprovedOptimized {
             }
             
             let trimmed = col.trim();
-            // 彻底移除：空字符串、字符串字面量、数字、关键字、特殊字符等
+            // 更宽松的过滤：只移除明显无效的项
             if trimmed.is_empty() || 
-               (trimmed.starts_with("'") && trimmed.ends_with("'") || trimmed.starts_with("'") && trimmed.ends_with("'") && trimmed.len() > 1) || 
-               (trimmed.starts_with('"') && trimmed.ends_with('"') || trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 1) ||
-               (trimmed.starts_with('`') && trimmed.ends_with('`') && trimmed.len() > 2) ||
-               (trimmed.starts_with('[') && trimmed.ends_with(']') && trimmed.len() > 2) ||
-               trimmed.parse::<f64>().is_ok() ||
-               EnhancedSqlParserImprovedOptimized::is_keyword(trimmed.to_lowercase().as_str()) ||
-               trimmed.contains(';') || trimmed.contains(',') || trimmed.contains('.') ||
-               trimmed.len() == 1 ||
-               matches!(trimmed.to_uppercase().as_str(), "ASC" | "DESC" | "NULL" | "NOT" | "IN" | "LIKE" | "BETWEEN" | "AND" | "OR" | "IS" | "NOTNULL") {
+               trimmed.parse::<f64>().is_ok() || // 纯数字
+               trimmed.contains(';') || // 分号通常表示语句结束
+               // 保留可能包含点号的标识符（例如 table.column 形式）
+               (trimmed.contains('.') && !self.is_likely_table_column_reference(trimmed)) {
+                continue;
+            }
+            
+            // 更宽松的关键字过滤：仅过滤明显的SQL语句关键字
+            let lower_trimmed = trimmed.to_lowercase();
+            let is_essential_keyword = matches!(lower_trimmed.as_str(), 
+                "select" | "from" | "where" | "insert" | "update" | "delete" | 
+                "create" | "drop" | "alter" | "with" | "group" | "order" | 
+                "having" | "limit" | "offset" | "join" | "on" | "as" | "into" | 
+                "values" | "table" | "view" | "index" | "by" | "set");
+            
+            if is_essential_keyword {
+                continue;
+            }
+            
+            // 移除字符串字面量（更准确的检测）
+            if (trimmed.starts_with("'") && trimmed.ends_with("'") && trimmed.len() > 1) ||
+               (trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 1) ||
+               (trimmed.starts_with('`') && trimmed.ends_with('`') && trimmed.len() > 1) ||
+               (trimmed.starts_with('[') && trimmed.ends_with(']') && trimmed.len() > 1) {
                 continue;
             }
             
@@ -735,127 +884,137 @@ impl EnhancedSqlParserImprovedOptimized {
             }
         }
         
-        // 2. 清理表集合 - 更智能的规则，优先保留表名，避免将列名误识别为表名，并保持顺序
+        // 2. 清理表集合 - 更宽松的规则，提高表名识别率
         let mut clean_tables = Vec::new();
         for table in tables.iter() {
             let trimmed = table.trim();
             
-            // 移除：空字符串、关键字、单字符标识符
-            if trimmed.is_empty() || 
-               EnhancedSqlParserImprovedOptimized::is_keyword(trimmed.to_lowercase().as_str()) ||
-               trimmed.len() == 1 {
+            // 最小过滤：只移除空字符串和明显不是表名的项
+            if trimmed.is_empty() {
                 continue;
             }
             
-            // 特殊处理：优先保留复数形式的标识符（常见表名形式）
+            // 更宽松的关键字检测：仅过滤明显不可能是表名的关键字
             let lower_table = trimmed.to_lowercase();
-            let is_plural = lower_table.ends_with("s") && !lower_table.ends_with("ss") && 
-                          !lower_table.ends_with("ous") && !lower_table.ends_with("us");
+            let is_definitely_not_table = matches!(lower_table.as_str(),
+                "select" | "from" | "where" | "and" | "or" | "not" | "join" | "on" |
+                "group" | "order" | "having" | "limit" | "offset" | "distinct" |
+                "as" | "insert" | "update" | "delete" | "into" | "values" |
+                "set" | "create" | "drop" | "alter" | "with" | "by");
             
-            // 表名特征检测
+            if is_definitely_not_table {
+                continue;
+            }
+            
+            // 表名特征检测 - 保留更多可能性
             let is_table_like = 
-                is_plural ||
+                lower_table.ends_with("s") ||  // 宽松：大多数复数形式可能是表名
                 lower_table.ends_with("_table") ||
                 lower_table.ends_with("_view") ||
                 lower_table.ends_with("_data") ||
-                (lower_table.contains("_") && !lower_table.ends_with("_id") && 
-                 !lower_table.ends_with("_name") && !lower_table.ends_with("_type") && 
-                 !lower_table.ends_with("_address"));
+                lower_table.ends_with("_info") ||
+                lower_table.contains("_");  // 包含下划线的标识符更可能是表名
             
-            // 增强的列名模式检查 - 添加更多常见列名，包括"website"等
+            // 列名模式检查 - 平衡的规则
             let is_column_pattern = 
                 lower_table.ends_with("_id") || 
-                lower_table.ends_with("_name") || 
-                lower_table.ends_with("_type") || 
-                lower_table.ends_with("_status") ||
-                lower_table.ends_with("_date") ||
-                lower_table.ends_with("_time") ||
-                lower_table.ends_with("_email") ||
-                lower_table.ends_with("_address") ||
-                lower_table.ends_with("_code") ||
-                lower_table.ends_with("_number") ||
-                lower_table.ends_with("_value") ||
-                lower_table.ends_with("_count") ||
+                lower_table.ends_with("_name") ||
                 lower_table.starts_with("is_") ||
                 lower_table.starts_with("has_") ||
-                // 添加更多常见列名
-                ["id", "name", "code", "type", "status", "date", "time", "value", "count", "address",
-                 "product_type", "category_id", "first_name", "last_name", "middle_name",
-                 "website", "email", "phone", "url", "title", "description", "quantity",
-                 "amount", "price", "cost", "total", "sum", "average", "min", "max",
-                 "user_id", "customer_id", "order_id", "product_id", "category_id"].contains(&lower_table.as_str());
+                // 关键的常见列名过滤
+                ["website", "status", "type", "code", "date", "time", "value", "count", 
+                 "flag", "name", "id"].contains(&lower_table.as_str()) ||
+                // 单字母或双小写字母通常是别名而非表名
+                (lower_table.len() == 1 && lower_table.chars().all(|c| c.is_ascii_lowercase())) ||
+                (lower_table.len() == 2 && lower_table.chars().all(|c| c.is_ascii_lowercase())) ||
+                // 常见的CTE临时表名过滤
+                lower_table == "temp" || lower_table == "tmp" || lower_table == "cte";
             
-            // 如果明显是列名格式且同时存在于列集合中，则不应该作为表名保留
-            if is_column_pattern && column_set.contains(trimmed) {
+            // 如果是明显的列名模式，无论是否在列集合中都排除
+            if is_column_pattern {
                 continue;
             }
             
-            // 如果明显是表名，或者不是明显的列名，则保留
-            if (is_table_like || !is_column_pattern) && !table_set.contains(trimmed) {
+            // 更宽松的保留策略：除非确定是列名，否则都尝试保留
+            if !table_set.contains(trimmed) {
                 clean_tables.push(trimmed.to_string());
                 table_set.insert(trimmed.to_string());
             }
         }
         
-        // 3. 处理表名和列名重叠问题
+        // 3. 处理表名和列名重叠问题 - 更智能的判断
         let overlapping_items: Vec<String> = table_set
             .intersection(&column_set)
             .cloned()
             .collect();
         
         for item in overlapping_items {
-            // 在重叠情况下，优先判断是否应该是表名或列名
+            // 在重叠情况下，基于上下文智能判断
             let lower_item = item.to_lowercase();
             
             // 判断是否明显是列名
             let is_obviously_column = 
                 lower_item.ends_with("_id") || 
-                lower_item.ends_with("_type") || 
-                lower_item.ends_with("_address") ||
                 lower_item.ends_with("_name") ||
                 lower_item.starts_with("is_") ||
                 lower_item.starts_with("has_") ||
-                ["id", "type", "address", "product_type", "website", "email", "phone", "url"].contains(&lower_item.as_str());
+                ["id", "name", "type"].contains(&lower_item.as_str());
             
             // 判断是否明显是表名
             let should_be_table = 
                 (lower_item.ends_with("s") && !lower_item.ends_with("ss") && 
-                !lower_item.ends_with("ous") && !lower_item.ends_with("us")) &&
-                !is_obviously_column ||
-                original_tables.contains(&item) && !is_obviously_column;
+                !lower_item.ends_with("ous") && !lower_item.ends_with("us")) ||
+                original_tables.contains(&item);
             
-            if should_be_table {
+            // 智能决策：如果有强表名特征，保留为表名；否则保留为列名
+            if should_be_table && !is_obviously_column {
                 // 如果应该是表名，从列集合中移除
                 if let Some(pos) = clean_columns.iter().position(|x| x == &item) {
                     clean_columns.remove(pos);
                 }
                 column_set.remove(&item);
-            } else {
-                // 否则从表集合中移除
+            } else if is_obviously_column {
+                // 如果明显是列名，从表集合中移除
                 if let Some(pos) = clean_tables.iter().position(|x| x == &item) {
                     clean_tables.remove(pos);
                 }
                 table_set.remove(&item);
             }
+            // 对于边界情况，保留在两个集合中
         }
         
-        // 4. 清理schema集合 - 最小化保留，并保持顺序
+        // 4. 清理schema集合 - 保留更多可能的schema
         let mut clean_schemas = Vec::new();
-        let common_schemas = ["public", "private", "internal", "external", "default", "sys", "system", "temp", "tempdb", "information_schema", "dbo"];
+        // 扩展常见schema列表
+        let common_schemas = ["public", "private", "internal", "external", "default", "sys", "system", 
+                             "temp", "tempdb", "information_schema", "dbo", "pg_catalog", 
+                             "mysql", "performance_schema", "sysibm", "syscat", "sysdba"];
+        
         for schema in schemas.iter() {
             let lower_schema = schema.to_lowercase();
-            // 仅保留常见schema名称，且不在表或列集合中
+            // 保留常见schema名称，且不在表集合中（允许与列集合重叠）
             if common_schemas.contains(&lower_schema.as_str()) && 
-               !table_set.contains(schema) && 
-               !column_set.contains(schema) &&
+               !table_set.contains(schema) &&
                !schema_set.contains(schema) {
                 clean_schemas.push(schema.clone());
                 schema_set.insert(schema.clone());
             }
         }
         
-        // 5. 清空数据库集合
-        databases.clear();
+        // 5. 保留非空的数据库集合，不盲目清空
+        if !databases.is_empty() {
+            let mut unique_databases = Vec::new();
+            let mut db_set = HashSet::new();
+            for db in databases.iter() {
+                let trimmed = db.trim();
+                if !trimmed.is_empty() && !db_set.contains(trimmed) && 
+                   !table_set.contains(trimmed) && !column_set.contains(trimmed) {
+                    unique_databases.push(trimmed.to_string());
+                    db_set.insert(trimmed.to_string());
+                }
+            }
+            *databases = unique_databases;
+        }
         
         // 6. 如果没有列但有表，添加通配符
         if clean_columns.is_empty() && !clean_tables.is_empty() {
@@ -867,6 +1026,19 @@ impl EnhancedSqlParserImprovedOptimized {
         *tables = clean_tables;
         *schemas = clean_schemas;
     }
+    
+    // 判断字符串是否可能是 table.column 格式的引用
+     fn is_likely_table_column_reference(&self, identifier: &str) -> bool {
+         // 简单检查：只包含一个点号且前后都有字符
+         let parts: Vec<&str> = identifier.split('.').collect();
+         if parts.len() == 2 {
+             let table_part = parts[0].trim();
+             let column_part = parts[1].trim();
+             // 确保两部分都不为空
+             return !table_part.is_empty() && !column_part.is_empty();
+         }
+         false
+     }
 
     /// 预处理SQL，移除注释和规范化
     /// 优化：减少不必要的字符串操作和内存分配
@@ -1170,9 +1342,9 @@ impl EnhancedSqlParserImprovedOptimized {
                 }
             } else {
                 // 避免重复添加，保持顺序
-            if !tables.contains(&table_name.to_string()) {
-                tables.push(table_name.to_string());
-            }
+                if !tables.contains(&table_name.to_string()) {
+                    tables.push(table_name.to_string());
+                }
             }
         }
     }

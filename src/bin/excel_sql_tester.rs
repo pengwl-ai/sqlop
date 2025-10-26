@@ -63,30 +63,95 @@ impl ParseResult {
     }
 }
 
+// 注释：filter_tables和extract_view_info函数已集成到SQL解析引擎内部
+// 不再需要从核心库导入这些函数
+
+// 递归比较两个Value是否相等，数组忽略顺序但必须元素一致
+fn compare_values_ignore_array_order(result: &Value, expect: &Value) -> bool {
+    match (result, expect) {
+        // 数组比较：长度相同且每个元素都能在另一个数组中找到匹配
+        (Value::Array(result_arr), Value::Array(expect_arr)) => {
+            if result_arr.len() != expect_arr.len() {
+                return false;
+            }
+            
+            // 对于字符串数组，使用集合比较
+            if result_arr.iter().all(|v| v.is_string()) && expect_arr.iter().all(|v| v.is_string()) {
+                let result_set: std::collections::HashSet<_> = result_arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                let expect_set: std::collections::HashSet<_> = expect_arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                result_set == expect_set
+            } else {
+                // 对于复杂数组，需要每个元素都能找到匹配
+                let mut used = vec![false; expect_arr.len()];
+                for r_item in result_arr {
+                    let mut found = false;
+                    for (i, (used_flag, e_item)) in used.iter_mut().zip(expect_arr).enumerate() {
+                        if !*used_flag && compare_values_ignore_array_order(r_item, e_item) {
+                            *used_flag = true;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        return false;
+                    }
+                }
+                true
+            }
+        },
+        // 对象比较：所有key都存在且对应值相等
+        (Value::Object(result_obj), Value::Object(expect_obj)) => {
+            if result_obj.len() != expect_obj.len() {
+                return false;
+            }
+            
+            for (key, result_val) in result_obj {
+                if let Some(expect_val) = expect_obj.get(key) {
+                    if !compare_values_ignore_array_order(result_val, expect_val) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            true
+        },
+        // 其他类型直接比较
+        (r, e) => r == e,
+    }
+}
+
 // 比较结果函数，返回比较状态
-fn compare_and_format_results(result_json: &Value, expect_result: &str) -> (String, bool) {
+fn compare_and_format_results(result_json: &Value, expect_result: &str, _sql: &str) -> (String, bool) {
     if expect_result.is_empty() {
         return (String::new(), false);
     }
     
-    let mut output = String::new();
-    let mut is_match = false;
+    // 清理期望结果字符串
+    let clean_expect = expect_result.trim()
+        .trim_start_matches("```json")
+        .trim_end_matches("```")
+        .trim();
     
-    if let Ok(expect_json) = serde_json::from_str::<Value>(expect_result) {
-        if let (Some(result_data), Some(expect_data)) = (
-            ParseResult::from_json(result_json),
-            ParseResult::from_json(&expect_json)
-        ) {
-            is_match = result_data.equals_ignore_order(&expect_data);
-            if is_match {
-                output.push_str("✅ RESULT MATCHES EXPECTATION\n");
+    // 解析期望结果JSON
+    match serde_json::from_str::<Value>(clean_expect) {
+        Ok(expect_json) => {
+            // 递归比较所有key的value，数组忽略顺序但元素必须一致
+            if compare_values_ignore_array_order(result_json, &expect_json) {
+                (String::from("✅ [匹配成功]\n"), true)
             } else {
-                output.push_str("❌ RESULT DOES NOT MATCH EXPECTATION\n");
+                (String::from("❌ [匹配失败]\n"), false)
             }
+        },
+        Err(e) => {
+            // JSON解析失败时返回失败
+            (format!("❌ [匹配失败 - JSON解析异常: {}]\n", e), false)
         }
     }
-    
-    (output, is_match)
 }
 
 fn main() {
@@ -205,7 +270,7 @@ fn process_excel_file(
                             (vec![2], vec![])
                         } else if file_path.contains("DSP解析与策略能力列表") {
                             // DSP解析与策略能力列表文件：D列是SQL（索引为3）
-                            (vec![3], vec![])
+                            (vec![3], vec![4])
                         } else if file_path.contains("sql_parse_test_set") {
                             // sql_parse_test_set文件：D列是SQL（索引为3），I列是期望结果（索引为8）
                             (vec![3], vec![8])
@@ -310,9 +375,10 @@ fn process_excel_file(
                                                                 );
                                                                 output.push_str(&old_format);
                                                                  
-                                                                // Generate JSON format output with arrays and filtered tables/columns
+                                                                // 提取并过滤表名，同时补充视图信息
                                                                 let databases_vec: Vec<String> = result.databases.into_iter().collect();
                                                                 let schemas_vec: Vec<String> = result.schemas.into_iter().collect();
+                                                                // 注意：表和视图的过滤处理已在SQL解析引擎内部完成
                                                                 let tables_vec: Vec<String> = result.tables.into_iter().collect();
                                                                 let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                  
@@ -340,12 +406,15 @@ fn process_excel_file(
                                                                   // 比较result和expect_result并更新计数
                                                                          if !expect_result.is_empty() {
                                                                              TOTAL_WITH_EXPECT_RESULT.fetch_add(1, Ordering::SeqCst);
-                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result);
+                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result, trimmed_sql);
                                                                              if is_match {
                                                                                  MATCHING_COUNT.fetch_add(1, Ordering::SeqCst);
                                                                              }
                                                                              output.push_str(&comparison_output);
-                                                                         }
+                                                                    }
+                                                                    
+                                                                    // 添加两个空行分隔不同的SQL解析结果
+                                                                    output.push_str("\n\n");
 
                                                                 // Update database type statistics
                                                                 let db_type_str = format!("{:?}", db_type);
@@ -389,9 +458,10 @@ fn process_excel_file(
                                                                     );
                                                                     output.push_str(&old_format);
                                                                      
-                                                                    // Generate JSON format output with arrays and filtered tables/columns
+                                                                    // 提取并过滤表名，同时补充视图信息
                                                                     let databases_vec: Vec<String> = result.databases.into_iter().collect();
                                                                     let schemas_vec: Vec<String> = result.schemas.into_iter().collect();
+                                                                    // 注意：表和视图的过滤处理已在SQL解析引擎内部完成
                                                                     let tables_vec: Vec<String> = result.tables.into_iter().collect();
                                                                     let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                      
@@ -419,13 +489,16 @@ fn process_excel_file(
                                                                       // 比较result和expect_result并更新计数
                                                                          if !expect_result.is_empty() {
                                                                              TOTAL_WITH_EXPECT_RESULT.fetch_add(1, Ordering::SeqCst);
-                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result);
+                                                                             let (comparison_output, is_match) = compare_and_format_results(&result_json, &expect_result, trimmed_sql);
                                                                              if is_match {
                                                                                  MATCHING_COUNT.fetch_add(1, Ordering::SeqCst);
                                                                              }
                                                                              output.push_str(&comparison_output);
-                                                                         }
-                                                                     
+                                                                    }
+                                                                    
+                                                                    // 添加两个空行分隔不同的SQL解析结果
+                                                                    output.push_str("\n\n");
+                                                                 
                                                                     // Update database type statistics
                                                                     let db_type_str = format!("{:?}", db_type);
                                                                     let entry = per_database_stats.entry(db_type_str.clone()).or_insert((0, 0));
