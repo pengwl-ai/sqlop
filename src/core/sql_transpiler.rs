@@ -2,8 +2,8 @@
 // 实现不同数据库方言间的SQL转换功能
 
 use sqlparser::dialect::Dialect;
+use crate::SqlopEngine;
 use crate::core::types::{DatabaseType, ParseResult, ParserConfig, AuditLog};
-use crate::core::parser::SqlParser;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -96,23 +96,10 @@ impl SqlTranspiler {
     pub fn transpile(&self, sql: &str) -> Result<String, String> {
         // 1. 解析SQL为AST
         let config = ParserConfig::default();
-        let mut parser = SqlParser::new(config);
+        let mut engine = SqlopEngine::new(Some(config)).map_err(|e| format!("Failed to create engine: {}", e))?;
         
-        // 创建audit_log用于解析
-        let audit_log = AuditLog {
-            id: "transpile_temp".to_string(),
-            timestamp: "".to_string(),
-            database_type: self.source_type.clone(),
-            user: None,
-            client_ip: None,
-            database_name: None,
-            sql_text: sql.to_string(),
-            execution_time_ms: None,
-            rows_affected: None,
-            status: "".to_string(),
-        };
-        
-        let parse_result = parser.parse_audit_log(&audit_log)
+        // 直接使用engine.parse_sql解析SQL
+        let parse_result = engine.parse_sql(sql, self.source_type.clone())
             .map_err(|e| format!("解析源SQL失败: {}", e))?;
         
         // 2. 转换AST

@@ -70,13 +70,13 @@ impl ParseResult {
 // 递归比较两个Value是否相等，数组忽略顺序但必须元素一致
 fn compare_values_ignore_array_order(result: &Value, expect: &Value) -> bool {
     match (result, expect) {
-        // 数组比较：长度相同且每个元素都能在另一个数组中找到匹配
+        // 数组比较：长度相同且元素集合相等
         (Value::Array(result_arr), Value::Array(expect_arr)) => {
             if result_arr.len() != expect_arr.len() {
                 return false;
             }
             
-            // 对于字符串数组，使用集合比较
+            // 对于字符串数组，使用集合比较（更可靠）
             if result_arr.iter().all(|v| v.is_string()) && expect_arr.iter().all(|v| v.is_string()) {
                 let result_set: std::collections::HashSet<_> = result_arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
@@ -84,24 +84,20 @@ fn compare_values_ignore_array_order(result: &Value, expect: &Value) -> bool {
                 let expect_set: std::collections::HashSet<_> = expect_arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect();
+                
+                // 确保两个集合完全相等
                 result_set == expect_set
             } else {
-                // 对于复杂数组，需要每个元素都能找到匹配
-                let mut used = vec![false; expect_arr.len()];
-                for r_item in result_arr {
-                    let mut found = false;
-                    for (i, (used_flag, e_item)) in used.iter_mut().zip(expect_arr).enumerate() {
-                        if !*used_flag && compare_values_ignore_array_order(r_item, e_item) {
-                            *used_flag = true;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        return false;
-                    }
-                }
-                true
+                // 对于复杂数组，尝试排序后直接比较
+                let mut sorted_result = result_arr.clone();
+                let mut sorted_expect = expect_arr.clone();
+                
+                // 简化的比较逻辑：对于复杂数组，假设它们已经被排序
+                // 或者尝试进行简单的字符串化比较
+                sorted_result.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                sorted_expect.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                
+                sorted_result == sorted_expect
             }
         },
         // 对象比较：所有key都存在且对应值相等
@@ -110,6 +106,7 @@ fn compare_values_ignore_array_order(result: &Value, expect: &Value) -> bool {
                 return false;
             }
             
+            // 对所有key进行比较
             for (key, result_val) in result_obj {
                 if let Some(expect_val) = expect_obj.get(key) {
                     if !compare_values_ignore_array_order(result_val, expect_val) {
@@ -385,11 +382,22 @@ fn process_excel_file(
                                                                 let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                  
                                                                 // 创建JSON格式用于比较
+                                                                 // 排序以避免顺序问题
+                                                                 let mut sorted_databases = databases_vec.clone();
+                                                                 let mut sorted_schemas = schemas_vec.clone();
+                                                                 let mut sorted_tables = tables_vec.clone();
+                                                                 let mut sorted_columns = columns_vec.clone();
+                                                                 
+                                                                 sorted_databases.sort();
+                                                                 sorted_schemas.sort();
+                                                                 sorted_tables.sort();
+                                                                 sorted_columns.sort();
+                                                                 
                                                                  let result_json = json!({ 
-                                                                     "databases": databases_vec, 
-                                                                     "schemas": schemas_vec, 
-                                                                     "tables": tables_vec, 
-                                                                     "columns": columns_vec 
+                                                                     "databases": sorted_databases, 
+                                                                     "schemas": sorted_schemas, 
+                                                                     "tables": sorted_tables, 
+                                                                     "columns": sorted_columns 
                                                                  });
                                                                  
                                                                   let json_output = format!(
@@ -468,11 +476,22 @@ fn process_excel_file(
                                                                     let columns_vec: Vec<String> = result.columns.into_iter().collect();
                                                                      
                                                                     // 创建JSON格式用于比较
+                                                                     // 排序以避免顺序问题
+                                                                     let mut sorted_databases = databases_vec.clone();
+                                                                     let mut sorted_schemas = schemas_vec.clone();
+                                                                     let mut sorted_tables = tables_vec.clone();
+                                                                     let mut sorted_columns = columns_vec.clone();
+                                                                     
+                                                                     sorted_databases.sort();
+                                                                     sorted_schemas.sort();
+                                                                     sorted_tables.sort();
+                                                                     sorted_columns.sort();
+                                                                     
                                                                      let result_json = json!({ 
-                                                                         "databases": databases_vec, 
-                                                                         "schemas": schemas_vec, 
-                                                                         "tables": tables_vec, 
-                                                                         "columns": columns_vec 
+                                                                         "databases": sorted_databases, 
+                                                                         "schemas": sorted_schemas, 
+                                                                         "tables": sorted_tables, 
+                                                                         "columns": sorted_columns 
                                                                      });
                                                                      
                                                                       let json_output = format!(

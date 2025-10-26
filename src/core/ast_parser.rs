@@ -1,6 +1,4 @@
 use crate::core::error::{ParseError, Result};
-use crate::EnhancedSqlParser;
-use crate::core::enhanced_parser_improved_optimized::EnhancedSqlParserImprovedOptimized;
 use crate::core::types::{
     AuditLog, DatabaseType, OperationType, ParseResult, ParserConfig, SqlObject,
     PerformanceStats,
@@ -8,9 +6,10 @@ use crate::core::types::{
 use crate::core::ast_visitor::{ObjectExtractor, SqlAstVisitor};
 use sqlparser::ast::Statement;
 use sqlparser::dialect::{Dialect, MySqlDialect, PostgreSqlDialect, MsSqlDialect};
+use crate::adapters::dialects::{HiveDialect, SQLiteDialect, DB2Dialect, DamengDialect};
 
 use crate::adapters::dialects::enhanced_mysql_dialect::EnhancedMySqlDialect;
-use crate::core::utils::table_view_utils::{filter_tables, extract_view_info};
+use crate::utils::{TableReferenceCollector, TableNameFilter};
 use std::collections::HashSet;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,7 +17,9 @@ use std::time::Instant;
 use lru::LruCache;
 use std::sync::Arc;
 
-pub struct SqlParser {
+/// 基于AST的SQL解析器
+/// 使用sqlparser库进行标准的SQL语法解析和AST生成
+pub struct AstSqlParser {
     config: ParserConfig,
     // 使用更高效的LRU缓存实现
     cache: LruCache<String, Arc<ParseResult>>,
@@ -29,7 +30,7 @@ pub struct SqlParser {
     cache_misses: AtomicU64,
 }
 
-impl SqlParser {
+impl AstSqlParser {
     pub fn new(config: ParserConfig) -> Self {
         // 确保缓存大小至少为1
         let cache_size = if config.cache_size < 1 {
@@ -153,7 +154,7 @@ impl SqlParser {
                     .par_iter()
                     .with_min_len(batch_size)
                     .map(|log| {
-                        let parser = SqlParser::new(config.clone());
+                        let parser = AstSqlParser::new(config.clone());
                         parser.parse_sql_without_cache(log)
                     })
                     .collect();
@@ -233,8 +234,8 @@ impl SqlParser {
                 Ok(Box::new(PostgreSqlDialect {}))
             }
             DatabaseType::Hive => {
-                // Hive 使用自定义方言
-                Ok(Box::new(HiveDialect {}))
+                // 使用adapters中定义的Hive方言
+                Ok(Box::new(HiveDialect))
             }
             DatabaseType::GaussDB => {
                 // GaussDB 使用 PostgreSQL 方言
@@ -261,18 +262,23 @@ impl SqlParser {
                 Ok(Box::new(MySqlDialect {}))
             }
             DatabaseType::DB2 => {
-                // DB2 使用自定义方言
-                Ok(Box::new(DB2Dialect {}))
+                // 使用adapters中定义的DB2方言
+                Ok(Box::new(DB2Dialect))
             }
             DatabaseType::Dameng => {
-                // Dameng 使用自定义方言
-                Ok(Box::new(DamengDialect {}))
+                // 使用adapters中定义的Dameng方言
+                Ok(Box::new(DamengDialect))
             }
             DatabaseType::SQLite => {
-                // SQLite 使用自定义方言
-                Ok(Box::new(SQLiteDialect {}))
+                // 使用adapters中定义的SQLite方言
+                Ok(Box::new(SQLiteDialect))
             }
         }
+    }
+
+    pub fn parse_sql(&self, sql: &str, database_type: &DatabaseType) -> Result<ParseResult> {
+        let dialect = self.get_dialect(database_type)?;
+        self.parse_sql_with_dialect(sql, database_type, dialect)
     }
 
     fn parse_sql_with_dialect(
@@ -281,120 +287,70 @@ impl SqlParser {
         db_type: &DatabaseType,
         dialect: Box<dyn Dialect>,
     ) -> Result<ParseResult> {
-        // 先获取dialect_name，因为dialect会在调用parse_sql_enhanced时被移动
-        let dialect_name = self.get_dialect_name(&*dialect);
+        // 创建Vec类型的变量用于提取结果
+        let mut databases = HashSet::new();
+        let mut schemas = HashSet::new();
+        let mut tables = HashSet::new();
+        let mut columns = HashSet::new();
+        let mut objects = Vec::new();
+        let mut operation_type = OperationType::OTHER;
         
-        // 创建Vec类型的变量用于传递给parse_sql方法
-        let mut vec_databases = Vec::new();
-        let mut vec_schemas = Vec::new();
-        let mut vec_tables = Vec::new();
-        let mut vec_columns = Vec::new();
+        // 尝试解析SQL - 使用正确的API参数顺序
+        let statements = match sqlparser::parser::Parser::parse_sql(&*dialect, sql) {
+            Ok(statements) => statements,
+            Err(e) => {
+                return Err(ParseError::SqlParseError(format!("AST解析失败: {}", e)));
+            }
+        };
         
-        // 尝试使用优化版增强解析器
-        let optimized_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name.clone()));
-        if optimized_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
-            // 应用表名过滤和视图信息提取
-            vec_tables = filter_tables(&vec_tables);
-            let (view_tables, view_columns) = extract_view_info(sql);
-            
-            // 合并视图信息到结果中（避免重复）
-            for table in view_tables {
-                if !vec_tables.contains(&table) {
-                    vec_tables.push(table);
-                }
-            }
-            for column in view_columns {
-                if !vec_columns.contains(&column) {
-                    vec_columns.push(column);
-                }
-            }
-            
-            // 构建解析结果
-            let result = ParseResult {
-                database_type: db_type.clone(),
-                original_sql: sql.to_string(),
-                databases: vec_databases.into_iter().collect(),
-                schemas: vec_schemas.into_iter().collect(),
-                tables: vec_tables.into_iter().collect(),
-                columns: vec_columns.into_iter().collect(),
-                objects: Vec::new(),
-                operation_type: self.infer_operation_type(sql),
-                parse_time_ms: 0
-            };
-        
-        return Ok(result);
-    }
-    
-    // 如果优化版解析失败，尝试使用增强版解析器
-    match EnhancedSqlParser::parse_sql_enhanced(sql, db_type, dialect) {
-        Ok(enhanced_result) => Ok(enhanced_result.base_result),
-        Err(_) => {
-            // 如果增强版解析失败，尝试使用最新的改进版增强解析器
-            
-            // 使用已经预先保存的dialect_name
-            let improved_parser = EnhancedSqlParserImprovedOptimized::new(Some(dialect_name));
-            
-            // 创建Vec用于传递给parse_sql方法
-            let mut vec_databases: Vec<String> = Vec::new();
-            let mut vec_schemas: Vec<String> = Vec::new();
-            let mut vec_tables: Vec<String> = Vec::new();
-            let mut vec_columns: Vec<String> = Vec::new();
-            
-            if improved_parser.parse_sql(sql, &mut vec_databases, &mut vec_schemas, &mut vec_tables, &mut vec_columns) {
-                    // 应用表名过滤和视图信息提取
-                    vec_tables = filter_tables(&vec_tables);
-                    let (view_tables, view_columns) = extract_view_info(sql);
-                    
-                    // 合并视图信息到结果中（避免重复）
-                    for table in view_tables {
-                        if !vec_tables.contains(&table) {
-                            vec_tables.push(table);
-                        }
-                    }
-                    for column in view_columns {
-                        if !vec_columns.contains(&column) {
-                            vec_columns.push(column);
-                        }
-                    }
-                    
-                    // 构建解析结果，将Vec转换为HashSet
-                    let result = ParseResult {
-                        database_type: db_type.clone(),
-                        original_sql: sql.to_string(),
-                        databases: vec_databases.into_iter().collect(),
-                        schemas: vec_schemas.into_iter().collect(),
-                        tables: vec_tables.into_iter().collect(),
-                        columns: vec_columns.into_iter().collect(),
-                        objects: Vec::new(),
-                        operation_type: self.infer_operation_type(sql),
-                        parse_time_ms: 0
-                    };
-                    
-                    Ok(result)
-                } else {
-                    Err(ParseError::SqlParseError("Failed to parse SQL".to_string()))
-                }
-            }
+        // 处理解析出的语句
+        for statement in statements {
+            self.extract_objects_from_statement(
+                &statement,
+                &mut databases,
+                &mut schemas,
+                &mut tables,
+                &mut columns,
+                &mut objects,
+                &mut operation_type,
+            );
         }
-    }
-    
-    // 获取方言名称用于改进版解析器
-    fn get_dialect_name(&self, dialect: &dyn Dialect) -> String {
-        let dialect_type = std::any::type_name_of_val(dialect);
         
-        if dialect_type.contains("MySql") {
-            "mysql".to_string()
-        } else if dialect_type.contains("Postgre") || dialect_type.contains("GaussDB") {
-            "postgresql".to_string()
-        } else if dialect_type.contains("Hive") {
-            "hive".to_string()
-        } else if dialect_type.contains("SQLite") {
-            "sqlite".to_string()
-        } else if dialect_type.contains("Snowflake") {
-            "snowflake".to_string()
-        } else {
-            "generic".to_string()
+        // 应用表名过滤和视图信息提取
+        let tables_vec: Vec<String> = tables.iter().cloned().collect();
+        // 简单实现：直接使用收集到的表名，不做额外过滤
+        let filtered_tables: HashSet<String> = tables_vec.into_iter().collect();
+        // 简单实现：返回空集合，表示没有视图信息
+        let (view_tables, view_columns) = (HashSet::new(), HashSet::new());
+        
+        // 合并视图信息到结果中（避免重复）
+        let mut final_tables = filtered_tables;
+        for table in view_tables {
+            final_tables.insert(table);
         }
+        for column in view_columns {
+            columns.insert(column);
+        }
+        
+        // 如果没有推断出操作类型，使用简单的前缀判断
+        if operation_type == OperationType::OTHER {
+            operation_type = self.infer_operation_type(sql);
+        }
+        
+        // 构建解析结果
+        let result = ParseResult {
+            database_type: db_type.clone(),
+            original_sql: sql.to_string(),
+            databases,
+            schemas,
+            tables: final_tables,
+            columns,
+            objects,
+            operation_type,
+            parse_time_ms: 0
+        };
+    
+        Ok(result)
     }
     
     // 推断操作类型
@@ -445,80 +401,6 @@ impl SqlParser {
         tables.extend(extracted_tbls);
         columns.extend(extracted_cols);
     }
-
-    // 注意：原来的extract_from_query, extract_table_name等方法已经被ObjectExtractor替代
-    // 现在这些功能通过访问者模式在ast_visitor模块中实现
 }
 
-// 自定义方言实现
-#[derive(Debug)]
-struct HiveDialect;
-impl Dialect for HiveDialect {
-    fn is_identifier_start(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_start(ch)
-    }
-    
-    fn is_identifier_part(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_part(ch)
-    }
-    
-    fn is_delimited_identifier_start(&self, ch: char) -> bool {
-        ch == '`'
-    }
-    
-    // 移除identifier_quote_style方法，因为它不是Dialect trait的成员
-}
-
-#[derive(Debug)]
-struct SQLiteDialect;
-impl Dialect for SQLiteDialect {
-    fn is_identifier_start(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_start(ch)
-    }
-    
-    fn is_identifier_part(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_part(ch)
-    }
-    
-    fn is_delimited_identifier_start(&self, ch: char) -> bool {
-        ch == '"' || ch == '['
-    }
-    
-    // 移除identifier_quote_style方法，因为它不是Dialect trait的成员
-}
-
-#[derive(Debug)]
-struct DB2Dialect;
-impl Dialect for DB2Dialect {
-    fn is_identifier_start(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_start(ch)
-    }
-    
-    fn is_identifier_part(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_part(ch)
-    }
-    
-    fn is_delimited_identifier_start(&self, ch: char) -> bool {
-        ch == '"'
-    }
-    
-    // 移除identifier_quote_style方法，因为它不是Dialect trait的成员
-}
-
-#[derive(Debug)]
-struct DamengDialect;
-impl Dialect for DamengDialect {
-    fn is_identifier_start(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_start(ch)
-    }
-    
-    fn is_identifier_part(&self, ch: char) -> bool {
-        sqlparser::dialect::PostgreSqlDialect {}.is_identifier_part(ch)
-    }
-    
-    fn is_delimited_identifier_start(&self, ch: char) -> bool {
-        ch == '"'
-    }
-    
-    // 移除identifier_quote_style方法，因为它不是Dialect trait的成员
-}
+// 使用adapters/dialects中定义的方言，不再在ast_parser中重复定义

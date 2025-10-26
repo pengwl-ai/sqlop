@@ -7,7 +7,6 @@ pub use adapters::*;
 
 // 重新导出主要类型和函数
 pub use core::SqlopEngine;
-pub use core::parser::SqlParser;
 pub use core::types::{
     AuditLog, DatabaseConfig, DatabaseType, OperationType, ParseResult, ParserConfig,
     SensitivePattern, SqlObject,

@@ -1,11 +1,19 @@
 pub mod performance;
 pub mod validation;
 pub mod format;
+pub mod advanced_security;
+pub mod performance_optimization;
+pub mod jmh_benchmark;
+pub mod table_view_utils;
 
 pub use performance::PerformanceMonitor;
 pub use validation::SqlValidator;
 pub use validation::SqlSecurityChecker;
 pub use format::SqlFormatter;
+pub use advanced_security::{SecurityRuleEngine, PermissionManager, SecurityRule};
+pub use performance_optimization::{LookaheadOptimizer, MemoryOptimizer};
+pub use jmh_benchmark::{SqlBenchmark, BenchmarkConfig, BenchmarkResult, generate_standard_benchmark_sql};
+pub use table_view_utils::{TableIdentifier, TableMetadata, TableReferenceCollector, TableNameFilter, ViewDependencyAnalyzer, generate_table_alias, normalize_table_reference};
 
 use crate::core::error::Result;
 use crate::core::types::DatabaseType;
