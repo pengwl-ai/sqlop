@@ -4,7 +4,8 @@ use std::io::Write;
 use std::time::Instant;
 use calamine::{open_workbook, Xlsx, Range, DataType, Reader};
 use sqlop::core::types::DatabaseType;
-use sqlop::SqlopEngine;
+use sqlop::core::layered_parser::LayeredSqlParser;
+use sqlop::core::types::ParserConfig;
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -155,8 +156,9 @@ fn compare_and_format_results(result_json: &Value, expect_result: &str, _sql: &s
 }
 
 fn main() {
-    // 初始化SQL解析引擎
-    let mut engine = SqlopEngine::default();
+    // 初始化SQL解析引擎 - 使用LayeredSqlParser
+    let config = ParserConfig::default();
+    let mut engine = LayeredSqlParser::new(config);
     
     // 统计信息
     let mut per_database_stats = HashMap::new();
@@ -244,7 +246,7 @@ fn main() {
 
 fn process_excel_file(
     file_path: &str,
-    engine: &mut SqlopEngine,
+    engine: &mut LayeredSqlParser,
     per_database_stats: &mut HashMap<String, (usize, usize)>
 ) -> (usize, usize, String) {
     let mut success_count = 0;
@@ -356,7 +358,7 @@ fn process_excel_file(
                                                     
                                                     // First try database types from A column or inferred from sheet name
                                                     for db_type in &database_types {
-                                                        match engine.parse_sql(trimmed_sql, db_type.clone()) {
+                                                        match engine.parse_sql(trimmed_sql, &db_type) {
                                                             Ok(result) => {
                                                                 success_count += 1;
                                                                 parsed = true;
@@ -439,7 +441,7 @@ fn process_excel_file(
                                                                 continue;
                                                             }
                                                             
-                                                            match engine.parse_sql(trimmed_sql, db_type.clone()) {
+                                                            match engine.parse_sql(trimmed_sql, &db_type) {
                                                                 Ok(result) => {
                                                                     success_count += 1;
                                                                     parsed = true;
@@ -561,7 +563,7 @@ fn process_excel_file(
                                                 
                                                 let mut parsed = false;
                                                 for db_type in &all_db_types {
-                                                    if engine.parse_sql(trimmed_sql, db_type.clone()).is_ok() {
+                                                    if engine.parse_sql(trimmed_sql, &db_type).is_ok() {
                                                         success_count += 1;
                                                         parsed = true;
                                                         
@@ -777,7 +779,7 @@ fn parse_database_type(type_str: &str) -> Option<DatabaseType> {
     }
 }
 
-fn run_performance_test(engine: &mut SqlopEngine) -> String {
+fn run_performance_test(engine: &mut LayeredSqlParser) -> String {
     let mut output = String::new();
     
     // Use simple SQL statements without quotes
@@ -797,7 +799,7 @@ fn run_performance_test(engine: &mut SqlopEngine) -> String {
     // Preheat
     for _ in 0..1000 {
         for sql in &test_sqls {
-            let _ = engine.parse_sql(sql, db_type.clone());
+            let _ = engine.parse_sql(sql, &db_type);
         }
     }
     
@@ -809,7 +811,7 @@ fn run_performance_test(engine: &mut SqlopEngine) -> String {
     
     for i in 0..iterations {
         let sql = &test_sqls[i % test_sqls.len()];
-        if engine.parse_sql(sql, db_type.clone()).is_ok() {
+        if engine.parse_sql(sql, &db_type).is_ok() {
             count += 1;
         }
         

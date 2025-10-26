@@ -7,6 +7,7 @@ pub mod sql_transpiler;
 pub mod enhanced_parser;
 pub mod enhanced_parser_improved;
 pub mod enhanced_parser_improved_optimized;
+pub mod layered_parser;
 pub mod database_specific;
 
 pub use error::{ParseError, Result};
@@ -14,6 +15,7 @@ pub use parser::SqlParser;
 pub use enhanced_parser::EnhancedSqlParser;
 pub use enhanced_parser_improved::EnhancedSqlParserImproved;
 pub use enhanced_parser_improved_optimized::EnhancedSqlParserImprovedOptimized;
+pub use layered_parser::LayeredSqlParser;
 pub use database_specific::DatabaseSpecificHandler;
 pub use types::{
     AuditLog, DatabaseConfig, DatabaseType, EnhancedParseResult, OperationType, ParseResult, ParserConfig,
