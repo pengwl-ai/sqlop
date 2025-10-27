@@ -167,7 +167,8 @@ fn main() {
     let excel_files = vec![
         // "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/安恒词法解析（复杂查询） (1).xlsx",
         // "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/DSP解析与策略能力列表 (1).xlsx",
-        "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/sql_parse_test_set(1).xlsx"
+         // "/Volumes/Macintosh HD/Users/zhushuai/rust/src/github/sqlop/tests/sql_parse_test_set(1).xlsx",
+       "/root/src/sqlop/tests/sql_parse_test_set(1).xlsx"
     ];
     
     // 处理每个Excel文件
